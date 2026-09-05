@@ -9,7 +9,13 @@
     <OutputType>WinExe</OutputType>
     <RootNamespace>ConquerLoader</RootNamespace>
     <AssemblyName>ConquerLoader</AssemblyName>
-    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
+    <!-- v4.8, not upstream's v4.6.2. The 4.6.2 targeting pack is not installed
+         by Visual Studio 2022 by default and is not on the GitHub Windows runner
+         images, so a v4.6.2 build needs a developer pack nobody thinks to
+         install and fails with MSB3644 when they have not. 4.8 ships in-box on
+         every Windows 10 1903 and later, which is the whole population that can
+         run this client. -->
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>

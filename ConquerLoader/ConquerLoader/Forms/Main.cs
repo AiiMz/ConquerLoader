@@ -496,6 +496,15 @@ namespace ConquerLoader.Forms
                     },
                     Log = message => Core.LogWritter.Write("[Plugin] " + message)
                 };
+                // Before the plugins, because a plugin that patches or rewrites a
+                // client file should see the files the server actually publishes
+                // and get the last word over them.
+                PluginPreLaunchResult patchResult = Core.RunAutoPatch(preLaunchContext);
+                if (!patchResult.ContinueLaunch)
+                {
+                    MetroFramework.MetroMessageBox.Show(this, patchResult.Message ?? $"[{SelectedServer.ServerName}] Launch canceled: the client could not be updated.", this.ProductName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
                 PluginPreLaunchResult preLaunchResult = Core.RunPreLaunchPlugins(preLaunchContext);
                 if (!preLaunchResult.ContinueLaunch)
                 {

@@ -170,6 +170,86 @@ namespace ConquerLoader
             }
         }
 
+        /// <summary>
+        /// Brings the client into line with the selected server's patch layer
+        /// before it is launched. Does nothing unless that server carries a
+        /// <see cref="ServerConfiguration.PatchManifestUrl"/>, so a config.json
+        /// written for any earlier version of this loader behaves exactly as it
+        /// did.
+        ///
+        /// THIS IS WHY THE PATCHER IS NOT A SEPARATE EXECUTABLE. A patcher that
+        /// ships beside the loader is a patcher nothing makes anyone run: the
+        /// loader is the name players already know, it is what the first desktop
+        /// shortcut points at, and a player who never runs the patcher is a
+        /// player whose client silently disagrees with the server about item and
+        /// mesh data. The symptoms of that are cosmetic and strange - missing
+        /// garments, wrong icons - rather than an error anybody reports usefully.
+        /// Putting the check inside the launch path is the only version of this
+        /// that cannot be skipped by accident.
+        ///
+        /// It returns a <see cref="PluginPreLaunchResult"/> rather than a bool so
+        /// the two call sites can reuse the cancel-launch plumbing they already
+        /// have for plugins.
+        ///
+        /// The patch target is the loader's own folder, not the working
+        /// directory: manifest paths are relative to the client ROOT, and the
+        /// working directory is an Env_DX8 or Env_DX9 subfolder whenever one of
+        /// those is in use.
+        /// </summary>
+        public static PluginPreLaunchResult RunAutoPatch(PluginPreLaunchContext context)
+        {
+            string manifestUrl = context?.Server?.PatchManifestUrl;
+
+            if (string.IsNullOrWhiteSpace(manifestUrl))
+            {
+                return PluginPreLaunchResult.Success();
+            }
+
+            Uri baseUrl;
+            if (!Uri.TryCreate(EnsureTrailingSlash(manifestUrl.Trim()), UriKind.Absolute, out baseUrl))
+            {
+                // Configuration is wrong rather than the install, so this is the
+                // one patch failure that is worth stopping for even though
+                // nothing has been touched: silently not patching is precisely
+                // the behaviour being removed.
+                string message = "PatchManifestUrl for \"" + context.Server.ServerName + "\" is not a valid URL: " + manifestUrl;
+                LogWritter.Write(message);
+                return PluginPreLaunchResult.Fail(message);
+            }
+
+            Action<int, int> reportProgress = null;
+            if (context.ReportProgress != null)
+            {
+                // The launch path gives plugins a 1-8 band to move a progress bar
+                // through. Downloads land in the same band so the window is not
+                // simply frozen while a few hundred megabytes arrive.
+                reportProgress = (done, total) =>
+                {
+                    if (total <= 0) return;
+                    context.ReportProgress(1 + (int)(7L * done / total));
+                };
+            }
+
+            CLCore.Patching.PatchOutcome outcome = CLCore.Patching.ClientPatcher.Run(
+                context.StartupPath,
+                baseUrl,
+                CLCore.Patching.ClientPatcher.DefaultTimeout,
+                line => LogWritter.Write("[Patch] " + line),
+                reportProgress);
+
+            if (!outcome.CanLaunch)
+            {
+                return PluginPreLaunchResult.Fail(outcome.Message ?? outcome.Summary);
+            }
+
+            return PluginPreLaunchResult.Success();
+        }
+
+        private static string EnsureTrailingSlash(string url)
+        {
+            return url.EndsWith("/", StringComparison.Ordinal) ? url : url + "/";
+        }
+
         public static PluginPreLaunchResult RunPreLaunchPlugins(PluginPreLaunchContext context)
         {
             if (PluginLoader.Plugins == null || PluginLoader.Plugins.Count == 0)

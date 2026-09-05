@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Tests for CLCore\Patching - the auto-update path added to this fork.
+
+    WHAT IS ACTUALLY UNDER TEST
+    ========================================================================
+    The three things that are ours and dangerous:
+
+      * The path guard. It is the only place where a string from the network
+        becomes a location on a player's disk, and there is no second line of
+        defence behind it.
+      * The manifest validation. Everything downstream trusts the document, so
+        every rejection it should make is a test.
+      * The compare-and-install pair. "Which files need downloading" and "a
+        download that fails leaves the old file alone" are the two behaviours
+        the whole feature is for.
+
+    HttpClient and the loader's WinForms/WPF launch paths are not tested and are
+    deliberately kept thin enough not to need it.
+
+    NOT IN ConquerLoader.sln, on purpose: that solution is built by
+    MSBuild-for-.NET-Framework and also carries two C++ projects, and this is an
+    SDK-style project run by `dotnet test`.
+  -->
+
+  <PropertyGroup>
+    <!-- net48 rather than net8.0: the assembly under test is a .NET Framework
+         class library, and a portable test host cannot load it. -->
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>CLCore.Tests</AssemblyName>
+    <RootNamespace>CLCore.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\CLCore\CLCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+</Project>

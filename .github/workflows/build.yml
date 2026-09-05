@@ -1,0 +1,66 @@
+# Builds the loader and runs the tests for CLCore\Patching.
+#
+# This fork's whole reason to exist is that the shipped ConquerLoader.exe
+# updates the client before starting it, and the exe players run should come out
+# of a workflow rather than off whichever laptop built it last. See FORK.md.
+#
+# Only ConquerLoader.csproj is built. The solution also carries two C++ hook
+# projects and CLServer, none of which this fork changes and none of which is
+# needed to ship the loader.
+name: build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: microsoft/setup-msbuild@v2
+
+      # packages.config, not PackageReference, so this is not `dotnet restore`.
+      # RestorePackagesConfig plus an explicit SolutionDir is what NuGet.targets
+      # needs when it is pointed at a project rather than a solution.
+      - name: Restore
+        run: >
+          msbuild ConquerLoader\ConquerLoader\ConquerLoader.csproj
+          -t:Restore -p:RestorePackagesConfig=true
+          -p:SolutionDir=${{ github.workspace }}\ConquerLoader\
+          -v:minimal -nologo
+
+      - name: Build
+        run: >
+          msbuild ConquerLoader\ConquerLoader\ConquerLoader.csproj
+          -t:Build -p:Configuration=Release
+          -p:SolutionDir=${{ github.workspace }}\ConquerLoader\
+          -v:minimal -nologo
+
+      # The path guard is the only place where a string from the network becomes
+      # a location on a player's disk, and there is no second line of defence
+      # behind it. It has already caught one real .NET Framework behaviour
+      # difference that the same code did not have on .NET 8.
+      - name: Test
+        run: dotnet test ConquerLoader\Tests\CLCore.Tests\CLCore.Tests.csproj -c Debug --nologo
+
+      # Costura packs every dependency into the one file. A build that produced
+      # a small exe would be one whose weaving silently did not run, and it would
+      # fail on a player's machine rather than here.
+      - name: Check the exe is packed
+        shell: pwsh
+        run: |
+          $exe = "ConquerLoader\Release\ConquerLoader.exe"
+          if (-not (Test-Path $exe)) { throw "No ConquerLoader.exe was produced." }
+          $mb = [math]::Round((Get-Item $exe).Length / 1MB, 1)
+          if ($mb -lt 30) { throw "ConquerLoader.exe is only $mb MB - Costura did not pack it." }
+          Write-Host "ConquerLoader.exe OK: $mb MB"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ConquerLoader-${{ github.sha }}
+          path: ConquerLoader/Release/ConquerLoader.exe

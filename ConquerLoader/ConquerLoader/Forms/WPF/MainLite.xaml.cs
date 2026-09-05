@@ -564,6 +564,16 @@ namespace ConquerLoader.Forms.WPF
                 Log = message => Core.LogWritter.Write("[Plugin] " + message)
             };
 
+            // Before the plugins, because a plugin that patches or rewrites a
+            // client file should see the files the server actually publishes and
+            // get the last word over them.
+            PluginPreLaunchResult patchResult = Core.RunAutoPatch(preLaunchContext);
+            if (!patchResult.ContinueLaunch)
+            {
+                ShowWarning(patchResult.Message ?? ("[" + SelectedServer.ServerName + "] Launch canceled: the client could not be updated."));
+                return;
+            }
+
             PluginPreLaunchResult preLaunchResult = Core.RunPreLaunchPlugins(preLaunchContext);
             if (!preLaunchResult.ContinueLaunch)
             {
