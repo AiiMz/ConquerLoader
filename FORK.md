@@ -1,11 +1,12 @@
 # What this fork changes
 
 Fork of [OpenConquerOrg/ConquerLoader](https://github.com/OpenConquerOrg/ConquerLoader).
-It exists for one reason: **the loader updates the client before it starts it**,
-so the patch step cannot be skipped.
+It exists mainly for one reason: **the loader updates the client before it
+starts it**, so the patch step cannot be skipped. It also carries the three
+fixes below that a server addressed by DNS name needs.
 
-Upstream is unchanged in every other respect. There is no rebranding, no UI
-surgery and no removed features, deliberately — every change below is additive
+Upstream is otherwise unchanged. There is no rebranding and no UI
+surgery, deliberately — every change below is additive
 or a one-line retarget, so pulling upstream fixes stays an ordinary merge:
 
 ```
@@ -37,6 +38,9 @@ and this is the repository that makes it possible — upstream is open source, s
 | `ConquerLoader/Forms/Main.cs`, `Forms/WPF/MainLite.xaml.cs` | **Six lines each**, calling it immediately before `RunPreLaunchPlugins` |
 | `Tests/CLCore.Tests/` | **New.** 52 tests over the path guard, the manifest validation and the compare-and-install pair |
 | every `*.csproj` | `TargetFrameworkVersion` v4.6.2 → **v4.8** |
+| `ConquerLoader/Models/ServersDatGenerator.cs` | **One method**, `ResolveToIPv4`, so `LoginHost` may be a hostname |
+| `CLCore/SocketSystem.cs` | **One method**, `CLClient.EnsureReachable`, bounding the CLServer connect |
+| `CLCore/Constants.cs` | **One flag**, `EnableCLServerConnections`, now `false` |
 
 ### Configuring it
 
@@ -100,6 +104,50 @@ failed patch leaves the install exactly as it was.
 **The patch target is the loader's own folder**, not the working directory:
 manifest paths are relative to the client *root*, and the working directory is
 an `Env_DX8` or `Env_DX9` subfolder whenever one of those is in use.
+
+## Reaching the server by name
+
+These three predate the patcher and were carried over from the fork of
+darkfoxdeveloper/ConquerLoader this replaced. Together they are what lets
+`LoginHost` be a domain, so the server's IP can change without every player
+editing `config.json`.
+
+**The client cannot resolve a hostname.** It validates `ServerIP` as a numeric
+address and rejects anything else outright — `ERROR: IP addr too long` from
+`3drole/network/socket.h:130` — without ever attempting a lookup. The launcher
+still reports the server ONLINE, because `Core.ServerAvailable` resolves it from
+.NET quite happily, so the symptom is a client that silently never connects.
+`ResolveToIPv4` fixes it where the value is written into `server.dat`. Numeric
+addresses pass straight through, costing no lookup and producing a byte-identical
+file; a failed lookup passes the original string through rather than blocking the
+launch, so a literal-IP configuration that never needed DNS cannot be broken by
+this. `ENABLE_HOSTNAME`/`HOSTNAME` in `CLHook.ini` does **not** cover this — that
+path is in `CLHook.dll`, and clients from 6000 up launch with `COHook.dll` and the
+`server.dat` mechanism, so for a 6300 client those keys are read by nobody.
+
+**The CLServer connect used to stall the launch for ~21 seconds.**
+`SimpleTcpClient.Connect` inherits the OS connect timeout, which is what Windows
+waits when the SYN is dropped rather than refused — what a filtering firewall
+does, an AWS security group for one. Both launch paths make that call between
+starting `conquer.exe` and injecting `COHook.dll`, so the whole wait is spent
+with the client running and unhooked: it reads the original encrypted
+`Server.dat`, builds the stock server list and dials a long-dead TQ address,
+never seeing the generated one. A server on localhost refuses at once, which is
+why this only ever broke for remote hosts — and so looked like a server-side or
+DNS problem. `EnsureReachable` probes with a 2s bound and throws the same
+`SocketException` a failed connect would; reachable servers behave as before.
+
+**CLServer itself is off.** It answers "does this IP have a live loader
+connection?", so a game server can refuse players who launched `conquer.exe`
+directly or with a bot. It cannot establish that: the socket carries no token and
+is never correlated with the game session it vouches for, so any TCP connect to
+port 8000 from the same address passes, one connection whitelists everyone behind
+a NAT, and a changing address locks out a legitimate player. The connection list
+also round-trips through `api.conquerloader.com` keyed by a license key that
+CLServer ships hardcoded, so every operator running it stock shares one namespace
+and overwrites the others. Nothing here consumes `CheckConnectionByIP`, so the
+connect only ever cost a socket — and, without the bound above, most of the
+launch.
 
 ## Building
 
