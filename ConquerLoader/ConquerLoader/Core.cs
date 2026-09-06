@@ -245,6 +245,31 @@ namespace ConquerLoader
             return PluginPreLaunchResult.Success();
         }
 
+        /// <summary>
+        /// Applies the player wing preference to the client before it starts.
+        ///
+        /// AFTER THE PATCH STEP, ALWAYS. The patcher compares by hash, so it
+        /// restores Action3DEffect.ini the moment it sees the marker; running
+        /// this first would simply have the edit undone a second later. Running
+        /// it second means the stock file arrives and the preference is
+        /// re-applied on top, every launch, with no state kept anywhere.
+        ///
+        /// IT NEVER CANCELS A LAUNCH, which is why it returns nothing. The
+        /// server is not told about this setting and does not read the file, so
+        /// the worst a failure can do is draw wings the player asked to hide, or
+        /// hide wings they asked for. Neither is worth refusing to start the
+        /// game over, and both are written to the log.
+        /// </summary>
+        public static void ApplyWingVisibility(PluginPreLaunchContext context)
+        {
+            bool hide = context != null && context.LoaderConfig != null && context.LoaderConfig.HideWings;
+
+            CLCore.ClientOptions.WingVisibility.Apply(
+                context == null ? null : context.StartupPath,
+                hide,
+                line => LogWritter.Write("[Wings] " + line));
+        }
+
         private static string EnsureTrailingSlash(string url)
         {
             return url.EndsWith("/", StringComparison.Ordinal) ? url : url + "/";

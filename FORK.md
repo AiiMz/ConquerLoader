@@ -36,7 +36,10 @@ and this is the repository that makes it possible — upstream is open source, s
 | `CLCore/Models/ServerConfiguration.cs` | **One field**, `PatchManifestUrl`. Null or empty — which is what every existing `config.json` has — turns patching off and the loader behaves exactly as it always did |
 | `ConquerLoader/Core.cs` | **One method**, `RunAutoPatch`, returning the same `PluginPreLaunchResult` the plugin hook already uses so both launch paths reuse the cancel-launch plumbing |
 | `ConquerLoader/Forms/Main.cs`, `Forms/WPF/MainLite.xaml.cs` | **Six lines each**, calling it immediately before `RunPreLaunchPlugins` |
-| `Tests/CLCore.Tests/` | **New.** 52 tests over the path guard, the manifest validation and the compare-and-install pair |
+| `CLCore/ClientOptions/` | **New.** `WingVisibility`, the Hide Wings toggle - see below |
+| `CLCore/Models/LoaderConfig.cs` | **One field**, `HideWings`. Absent from a `config.json` means false, so an existing one behaves as it always did |
+| `ConquerLoader/Forms/WPF/MainLite.xaml` + `.xaml.cs` | **One card** in the Options panel, in the same shape as the FPS Unlock one beside it |
+| `Tests/CLCore.Tests/` | **New.** 65 tests over the path guard, the manifest validation, the compare-and-install pair and the wing rewrite |
 | every `*.csproj` | `TargetFrameworkVersion` v4.6.2 → **v4.8** |
 | `ConquerLoader/Models/ServersDatGenerator.cs` | **One method**, `ResolveToIPv4`, so `LoginHost` may be a hostname |
 | `CLCore/SocketSystem.cs` | **One method**, `CLClient.EnsureReachable`, bounding the CLServer connect |
@@ -104,6 +107,47 @@ failed patch leaves the install exactly as it was.
 **The patch target is the loader's own folder**, not the working directory:
 manifest paths are relative to the client *root*, and the working directory is
 an `Env_DX8` or `Env_DX9` subfolder whenever one of those is in use.
+
+## Hide Wings
+
+A per-player cosmetic toggle in the Options panel. It rewrites
+`ini\Action3DEffect.ini` immediately before launch, appending `_hidden` to the
+414 lines that bind wing art so the effect names miss; unchecking it takes the
+suffix off again.
+
+**Nothing is hidden from the server, which is the point.** Wings are worn at
+equipment position 19 and carry real battle power. Every server-side attempt at
+this had to tell the client something false about what was equipped - blank the
+slot, or swap the item id for a look-alike - and the client works its own battle
+power out from that same table, so the figure it showed the player dropped while
+nothing on the server had moved. Here the server sends the real item, the client
+counts it, and the only thing that changes is whether the art can be found. The
+server is never told the setting exists.
+
+A key the client looks up and does not find draws nothing, and that is the
+client's ordinary behaviour rather than an error path: wings below Super quality
+have no binding at all, which is what the item means when it says you must
+upgrade it before you will grow a pair.
+
+**It runs after the patch step, always.** The patcher compares by hash and
+restores the file the moment it sees the suffix, so running the rewrite first
+would simply have it undone a second later. Running it second means the stock
+file arrives and the player's choice is re-applied on top of it, every launch,
+with no state kept anywhere.
+
+**The suffix is why there is no backup file.** The original effect name stays in
+the line, so the edit is reversible from the file alone - nothing to keep in
+step, and no list of stock names to go stale when wing art is added. Both
+directions are idempotent, a line edited by hand into something unrecognisable
+is left alone rather than guessed at, and the rewrite works on bytes so the
+file's mixed line endings survive it. That last one matters more than it sounds:
+this file is LF throughout with a tail of eighteen CRLF lines, and a rewrite that
+normalised them would change its hash and make the patcher re-download it on
+every launch.
+
+**It never cancels a launch.** The worst a failure here can do is draw wings a
+player asked to hide, or hide wings they asked for. Every outcome is written to
+`conquerloader.log`, prefixed `[Wings]`.
 
 ## Reaching the server by name
 

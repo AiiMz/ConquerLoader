@@ -23,6 +23,14 @@ namespace CLCore.Models
         public bool UseCustomDLLs { get; set; }
         public bool FPSUnlock { get; set; }
 
+        /// <summary>
+        /// Stop the client drawing wings. A player preference rather than a
+        /// server setting: it rewrites ini\Action3DEffect.ini before launch and
+        /// the server is never told, so the wings stay equipped and keep every
+        /// point of battle power they grant. See CLCore.ClientOptions.WingVisibility.
+        /// </summary>
+        public bool HideWings { get; set; }
+
         public LoaderConfig()
         {
             if (Servers == null)

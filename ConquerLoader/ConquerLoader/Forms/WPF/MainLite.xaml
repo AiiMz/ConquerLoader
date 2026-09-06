@@ -797,6 +797,8 @@
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="18" />
                                         <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="18" />
+                                        <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
 
                                     <StackPanel>
@@ -861,6 +863,40 @@
                                               Content="Enabled"
                                               Checked="TglFPSUnlock_CheckedChanged"
                                               Unchecked="TglFPSUnlock_CheckedChanged" />
+                                        </Grid>
+                                    </Border>
+
+                                    <Border Grid.Row="6"
+                                    Padding="18"
+                                    Background="#2A1418"
+                                    BorderBrush="#A0A9B6"
+                                    BorderThickness="1"
+                                    CornerRadius="22">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="18" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock x:Name="lblHideWings"
+                                                   FontSize="15"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" />
+                                                <TextBlock x:Name="txtHideWingsHint"
+                                                   Margin="0,6,0,0"
+                                                   Style="{StaticResource BodyStyle}"
+                                                   Text="Stops wings being drawn, on you and on everyone else. They stay equipped and keep every stat they give." />
+                                            </StackPanel>
+
+                                            <CheckBox x:Name="tglHideWings"
+                                              Grid.Column="2"
+                                              VerticalAlignment="Center"
+                                              Foreground="{StaticResource TextPrimaryBrush}"
+                                              Content="Enabled"
+                                              Checked="TglHideWings_CheckedChanged"
+                                              Unchecked="TglHideWings_CheckedChanged" />
                                         </Grid>
                                     </Border>
 

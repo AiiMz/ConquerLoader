@@ -77,6 +77,7 @@
     <Compile Include="Models\LoaderConfig.cs" />
     <Compile Include="Models\ServerConfiguration.cs" />
     <Compile Include="Models\ServerDatGroup.cs" />
+    <Compile Include="ClientOptions\WingVisibility.cs" />
     <Compile Include="Patching\ClientPatcher.cs" />
     <Compile Include="Patching\ClientPaths.cs" />
     <Compile Include="Patching\FileInstaller.cs" />

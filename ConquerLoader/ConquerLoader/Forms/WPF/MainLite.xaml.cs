@@ -295,6 +295,7 @@ namespace ConquerLoader.Forms.WPF
             Core.LogWritter.Write("Loaded config.json");
             btnStart.IsEnabled = LoaderConfig.Servers.Count > 0;
             tglFPSUnlock.IsChecked = LoaderConfig.FPSUnlock;
+            tglHideWings.IsChecked = LoaderConfig.HideWings;
             Constants.LicenseKey = LoaderConfig.LicenseKey;
             UpdateLauncherHints();
 
@@ -573,6 +574,11 @@ namespace ConquerLoader.Forms.WPF
                 ShowWarning(patchResult.Message ?? ("[" + SelectedServer.ServerName + "] Launch canceled: the client could not be updated."));
                 return;
             }
+
+            // After the patcher, never before it: the patch step compares by
+            // hash and would restore the file this rewrites. See
+            // Core.ApplyWingVisibility.
+            Core.ApplyWingVisibility(preLaunchContext);
 
             PluginPreLaunchResult preLaunchResult = Core.RunPreLaunchPlugins(preLaunchContext);
             if (!preLaunchResult.ContinueLaunch)
@@ -859,6 +865,21 @@ namespace ConquerLoader.Forms.WPF
             }
         }
 
+        /// <summary>
+        /// Saved as soon as it is clicked rather than at launch, so the choice
+        /// survives closing the loader without starting the game. The rewrite it
+        /// controls happens at launch - see Core.ApplyWingVisibility - because
+        /// the patcher would undo anything written earlier than that.
+        /// </summary>
+        private void TglHideWings_CheckedChanged(object sender, RoutedEventArgs e)
+        {
+            if (LoaderConfig != null)
+            {
+                LoaderConfig.HideWings = tglHideWings.IsChecked == true;
+                Core.SaveLoaderConfig(LoaderConfig);
+            }
+        }
+
         private void SetResolutionSelectionFromConfig()
         {
             if (LoaderConfig == null) return;
@@ -968,8 +989,10 @@ namespace ConquerLoader.Forms.WPF
             ApplyTranslation("btnStart", btnStart, "ENTER");
             ApplyTranslation("btnSettings", btnSettings, "Settings");
             ApplyTranslation("lblFPSUnlock", lblFPSUnlock, "Unlock FPS");
+            ApplyTranslation("lblHideWings", lblHideWings, "Hide Wings");
             ApplyTranslation("lblAbout", lblAbout, "About");
             ApplyTranslation("commonEnabled", tglFPSUnlock, "Enabled");
+            ApplyTranslation("commonEnabled", tglHideWings, "Enabled");
             noty.Visible = true;
             txtProgressValue.Text = "0%";
             UpdateStatusBadgeNeutral();

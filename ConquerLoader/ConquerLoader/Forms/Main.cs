@@ -505,6 +505,12 @@ namespace ConquerLoader.Forms
                     MetroFramework.MetroMessageBox.Show(this, patchResult.Message ?? $"[{SelectedServer.ServerName}] Launch canceled: the client could not be updated.", this.ProductName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
+
+                // After the patcher, never before it: the patch step compares by
+                // hash and would restore the file this rewrites. See
+                // Core.ApplyWingVisibility.
+                Core.ApplyWingVisibility(preLaunchContext);
+
                 PluginPreLaunchResult preLaunchResult = Core.RunPreLaunchPlugins(preLaunchContext);
                 if (!preLaunchResult.ContinueLaunch)
                 {
