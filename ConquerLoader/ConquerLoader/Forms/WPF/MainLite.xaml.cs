@@ -838,7 +838,15 @@ namespace ConquerLoader.Forms.WPF
                     LoaderConfig.FHDResolution = selectedRes == "1920x1080";
                 }
                 Core.SaveLoaderConfig(LoaderConfig);
-                txtLaunchTip.Text = TF("mainResolutionSelected", "Selected resolution: {0}. Review fullscreen and FPS options before launching.", selectedRes);
+
+                // Only claim the resolution was taken when the launch path will
+                // actually write it. This method also runs when the selection is
+                // set programmatically on load, so without the guard a client
+                // with screen changes off announces a resolution it will never
+                // apply, every single launch.
+                txtLaunchTip.Text = LoaderConfig.DisableScreenChanges
+                    ? T("mainResolutionIgnored", "Screen changes are turned off in Settings, so the resolution here is not applied.")
+                    : TF("mainResolutionSelected", "Selected resolution: {0}. Review fullscreen and FPS options before launching.", selectedRes);
             }
         }
 
@@ -872,6 +880,46 @@ namespace ConquerLoader.Forms.WPF
             {
                 cbxResolutions.SelectedItem = "800x600";
             }
+
+            ApplyScreenChangesState();
+        }
+
+        /// <summary>
+        /// Greys out the resolution picker when the launch path is going to
+        /// ignore it.
+        ///
+        /// WHY THIS EXISTS. Every screen write in the launch path is inside
+        /// `if (!LoaderConfig.DisableScreenChanges)`, but this combo was gated by
+        /// nothing — so with that setting on it stayed clickable, saved the
+        /// choice to config.json, echoed it back as "Selected resolution:
+        /// 1920x1080", and `ini/GameSetup.ini` was never written. A control that
+        /// confirms an action it did not perform is worse than one that is
+        /// missing, and it presented as "the resolution tab does not work" with
+        /// nothing in the log to explain it, because the branch that logs is the
+        /// branch that was skipped.
+        ///
+        /// The Settings window already does this for its own two screen
+        /// checkboxes. This is the same rule applied to the third control that
+        /// depends on the same flag.
+        ///
+        /// Called from <see cref="SetResolutionSelectionFromConfig"/>, which runs
+        /// on load and again after the Settings dialog closes — so unticking
+        /// "Disable Screen Changes" re-enables this without a restart.
+        /// </summary>
+        private void ApplyScreenChangesState()
+        {
+            if (LoaderConfig == null) return;
+
+            bool allowed = !LoaderConfig.DisableScreenChanges;
+
+            cbxResolutions.IsEnabled = allowed;
+
+            // The label carries the reason. A disabled control says "not now";
+            // it does not say "because of a setting two windows away", and that
+            // is the part that costs someone an afternoon.
+            txtResolutionLabel.Text = allowed
+                ? T("mainResolution", "Resolution")
+                : T("mainResolutionDisabled", "Resolution — off in Settings");
         }
 
         private void UpdateResolutionOptionsForServer(ServerConfiguration server)
