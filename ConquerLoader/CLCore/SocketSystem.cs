@@ -262,11 +262,49 @@ namespace CLCore
     }
     public class CLClient
     {
+        /// <summary>
+        /// How long to wait for CLServer before giving up on it.
+        ///
+        /// SimpleTcpClient.Connect blocks for the OS default connect timeout,
+        /// which on Windows is ~21 seconds when the SYN is dropped rather than
+        /// refused - what a filtering firewall does, an AWS security group for
+        /// one. That call sits between launching conquer.exe and injecting
+        /// COHook.dll, so the whole wait is spent with the client already
+        /// running and unhooked: it reads the original encrypted Server.dat,
+        /// builds the stock server list, and never sees the generated one.
+        /// A server on localhost refuses the connection at once, which is why
+        /// this only ever broke for remote hosts.
+        ///
+        /// CLServer is optional - Main already treats a failure here as
+        /// non-fatal - so failing fast is strictly better than blocking.
+        /// </summary>
+        private const int ConnectTimeoutMs = 2000;
+
         public SimpleTcpClient Client = null;
         public CLClient(string IP, uint Port)
         {
+            EnsureReachable(IP, (int)Port);
             Client = new SimpleTcpClient();
             Client.Connect(IP, (int)Port);
+        }
+
+        /// <summary>
+        /// Probes the endpoint with a bounded wait, so an unreachable CLServer
+        /// costs ConnectTimeoutMs instead of the OS default. Throws the same
+        /// SocketException an ordinary failed connect would, leaving the
+        /// caller's error handling unchanged.
+        /// </summary>
+        private static void EnsureReachable(string IP, int Port)
+        {
+            using (TcpClient probe = new TcpClient())
+            {
+                IAsyncResult ar = probe.BeginConnect(IP, Port, null, null);
+                if (!ar.AsyncWaitHandle.WaitOne(ConnectTimeoutMs))
+                {
+                    throw new SocketException((int)SocketError.TimedOut);
+                }
+                probe.EndConnect(ar); // rethrows refused / unreachable
+            }
         }
 
         public void Send(string content, uint seconds = 3)
