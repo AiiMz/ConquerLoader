@@ -253,7 +253,7 @@ namespace ConquerLoader.Forms.WPF
             importantInfoCard.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
             if (visible)
             {
-                lblImportantInfo.Text = T("settingsFpsWarning", "FPS Unlock may cause instability in some systems, for example with old graphic cards. Use at your own risk.");
+                lblImportantInfo.Text = T("settingsFpsWarning", "Without a cap the client draws as fast as the machine allows, and because it animates a step per frame everything on screen runs several times too fast. The cap itself is set on the main screen.");
             }
         }
 
@@ -345,7 +345,7 @@ namespace ConquerLoader.Forms.WPF
             tglDisableAutoFixFlash.Content = Core.TranslateText("lblDisableAutoFixFlash", "Disable AutoFix Flash");
             tglDisableScreenChanges.Content = Core.TranslateText("lblDisableScreenChanges", "Disable Screen Changes");
             tglUseCustomDLLs.Content = Core.TranslateText("lblUseCustomDLLs", "Use Custom DLLs");
-            tglFPSUnlock.Content = Core.TranslateText("lblFPSUnlock", "FPS Unlock");
+            tglFPSUnlock.Content = Core.TranslateText("lblFPSUnlock", "Unlimited FPS");
             Title = T("settingsWindowTitle", "Settings");
             txtWindowTitleBar.Text = T("settingsWindowTitle", "Settings");
             txtWindowHeading.Text = T("settingsWindowTitle", "Settings");

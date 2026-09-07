@@ -853,16 +853,23 @@
                                                 <TextBlock x:Name="txtFpsUnlockHint"
                                                    Margin="0,6,0,0"
                                                    Style="{StaticResource BodyStyle}"
-                                                   Text="Use this only when your client and server support it." />
+                                                   Text="The client draws as fast as your machine allows and animates a step per frame, so uncapped makes everything run fast. Leave the cap on unless you have a reason not to." />
                                             </StackPanel>
 
-                                            <CheckBox x:Name="tglFPSUnlock"
-                                              Grid.Column="2"
-                                              VerticalAlignment="Center"
-                                              Foreground="{StaticResource TextPrimaryBrush}"
-                                              Content="Enabled"
-                                              Checked="TglFPSUnlock_CheckedChanged"
-                                              Unchecked="TglFPSUnlock_CheckedChanged" />
+                                            <StackPanel Grid.Column="2"
+                                                VerticalAlignment="Center">
+                                                <ComboBox x:Name="cbxFpsLimit"
+                                                  MinWidth="140"
+                                                  Style="{StaticResource InputComboBoxStyle}"
+                                                  SelectionChanged="CbxFpsLimit_SelectionChanged" />
+                                                <CheckBox x:Name="tglFPSUnlock"
+                                                  Margin="0,12,0,0"
+                                                  HorizontalAlignment="Right"
+                                                  Foreground="{StaticResource TextPrimaryBrush}"
+                                                  Content="Unlimited"
+                                                  Checked="TglFPSUnlock_CheckedChanged"
+                                                  Unchecked="TglFPSUnlock_CheckedChanged" />
+                                            </StackPanel>
                                         </Grid>
                                     </Border>
 

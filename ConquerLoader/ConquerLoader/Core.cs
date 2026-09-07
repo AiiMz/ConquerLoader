@@ -408,6 +408,48 @@ namespace ConquerLoader
     }
     public static class SafeIO
     {
+        /// <summary>
+        /// Whether the file on disk is missing or holds something other than
+        /// <paramref name="data"/>.
+        ///
+        /// The hook DLLs are written out of the loader resources, and until now
+        /// only when the file was absent - so a loader shipping a fixed hook
+        /// left every existing install running the old one, forever, and said
+        /// "Using existing" in the log while it did. Comparing the bytes is what
+        /// makes a new hook actually reach a player who already has the client.
+        /// An unreadable file is treated as different so the write is attempted.
+        /// </summary>
+        public static bool DiffersFrom(string path, byte[] data)
+        {
+            try
+            {
+                if (!File.Exists(path))
+                {
+                    return true;
+                }
+
+                byte[] existing = File.ReadAllBytes(path);
+                if (existing.Length != data.Length)
+                {
+                    return true;
+                }
+
+                for (int i = 0; i < existing.Length; i++)
+                {
+                    if (existing[i] != data[i])
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+            catch
+            {
+                return true;
+            }
+        }
+
         public static bool TryWriteAllBytes(
             string path,
             byte[] data,

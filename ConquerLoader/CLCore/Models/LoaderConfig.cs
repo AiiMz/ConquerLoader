@@ -21,7 +21,31 @@ namespace CLCore.Models
         public string LicenseKey { get; set; }
         public bool DisableScreenChanges { get; set; }
         public bool UseCustomDLLs { get; set; }
+        /// <summary>
+        /// Leaves the client uncapped. Until now this stored a preference the
+        /// loader never acted on; it is now the switch that turns
+        /// <see cref="FpsLimit"/> off. See CLCore.ClientOptions.FrameRateLimit.
+        /// </summary>
         public bool FPSUnlock { get; set; }
+
+        /// <summary>
+        /// Frames per second to cap the client at while <see cref="FPSUnlock"/>
+        /// is off. Absent from a config.json - which is what every one written
+        /// before this existed looks like - means the default of 60, not
+        /// uncapped, because the client draws animations a step per frame and
+        /// uncapped is what makes them run fast.
+        /// </summary>
+        public int FpsLimit { get; set; }
+
+        /// <summary>
+        /// Makes the hook write a `CLHook.fps.log` next to conquer.exe saying
+        /// how often the client actually presented a frame. There is no UI for
+        /// it and it is off unless a config.json says otherwise, because it is
+        /// for answering one specific question: the frame count the client
+        /// draws on screen is its own, and when it disagrees with the cap this
+        /// is the only thing that can say which of the two is wrong.
+        /// </summary>
+        public bool FpsDebug { get; set; }
 
         /// <summary>
         /// Stop the client drawing wings. A player preference rather than a

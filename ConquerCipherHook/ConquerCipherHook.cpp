@@ -8,6 +8,7 @@
 #include <sstream>
 #include <string>
 #include "buffer.h"
+#include "FpsLimiter.h"
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "user32.lib")
 
@@ -145,11 +146,37 @@ __declspec(naked) DWORD __stdcall csv3_tqsend(PBYTE msg, DWORD len)
 	}
 }
 
+/**
+* Reads one integer out of the CLHook.ini the loader writes next to the client.
+*
+* MAX_FPS absent or 0 means no cap, which is how the client has always run;
+* FPS_DEBUG absent or 0 means no measurement either. The ini
+* lives beside conquer.exe rather than beside this DLL because the Env_DX8 and
+* Env_DX9 layouts run a copy of the executable from a subfolder and the loader
+* copies the ini in next to it.
+*/
+static int read_ini_int(const char* key, int fallback)
+{
+	char szConfig[MAX_PATH];
+	GetModuleFileNameA(NULL, szConfig, MAX_PATH);
+	for (int i = (int)strlen(szConfig) - 1; i >= 0; i--)
+	{
+		if (szConfig[i] == '\\')
+		{
+			szConfig[i + 1] = 0;
+			break;
+		}
+	}
+	strcat(szConfig, "CLHook.ini");
+	return GetPrivateProfileIntA("CLHook", key, fallback, szConfig);
+}
+
 void csv3_init(HMODULE hModule)
 {
 	float f = 0; // load support for floating operations -- thx ntl3fty!
 	//CFlashFix flash;
 	//flash.Hook();
+	FpsLimiter_Install(read_ini_int("MAX_FPS", 0), read_ini_int("FPS_DEBUG", 0) != 0);
 	memset(szPassword, 0, 32);
 	CreateHook32(lib_func("msvcr90.dll", "_snprintf"), csv3_snprintf, &snprintf_stub);
 	CreateHook32(lib_func("ws2_32.dll", "send"), csv3_send, &send_stub);

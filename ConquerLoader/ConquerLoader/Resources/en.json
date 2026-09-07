@@ -129,7 +129,7 @@
   },
   {
     "id": "lblFPSUnlock",
-    "text": "Unlock FPS"
+    "text": "Unlimited FPS"
   },
   {
     "id": "commonEnabled",
@@ -326,5 +326,21 @@
   {
     "id": "pluginsActionError",
     "text": "The plugin action failed: {0}"
+  },
+  {
+    "id": "lblFpsLimit",
+    "text": "Frame rate limit"
+  },
+  {
+    "id": "commonUnlimited",
+    "text": "Unlimited"
+  },
+  {
+    "id": "mainFpsLimitHint",
+    "text": "The client draws as fast as your machine allows and animates a step per frame, so uncapped makes everything run fast. Leave the cap on unless you have a reason not to."
+  },
+  {
+    "id": "settingsFpsWarning",
+    "text": "Without a cap the client draws as fast as the machine allows, and because it animates a step per frame everything on screen runs several times too fast."
   }
 ]

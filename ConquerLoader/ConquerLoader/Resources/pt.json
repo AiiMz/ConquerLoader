@@ -129,7 +129,7 @@
   },
   {
     "id": "lblFPSUnlock",
-    "text": "Desbloquear FPs"
+    "text": "FPS sem limite"
   },
   {
     "id": "lblAbout",
@@ -345,7 +345,7 @@
   },
   {
     "id": "settingsFpsWarning",
-    "text": "FPS Unlock pode causar instabilidade em alguns sistemas, por exemplo com placas antigas. Use por sua conta e risco."
+    "text": "Sem limite o cliente desenha tao rapido quanto a maquina permite e, como avanca a animacao um passo por quadro, tudo na tela corre varias vezes mais rapido do que deveria."
   },
   {
     "id": "aboutWindowTitle",
@@ -886,5 +886,17 @@
   {
     "id": "pluginsActionError",
     "text": "A acao do plugin falhou: {0}"
+  },
+  {
+    "id": "lblFpsLimit",
+    "text": "Limite de FPS"
+  },
+  {
+    "id": "commonUnlimited",
+    "text": "Sem limite"
+  },
+  {
+    "id": "mainFpsLimitHint",
+    "text": "O cliente desenha tao rapido quanto a maquina permite e avanca a animacao um passo por quadro, entao sem limite tudo corre rapido demais. Deixe o limite ligado a menos que tenha um motivo para desliga-lo."
   }
 ]

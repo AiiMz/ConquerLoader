@@ -1,4 +1,5 @@
 ﻿using CLCore;
+using CLCore.ClientOptions;
 using CLCore.Models;
 using ConquerLoader.Models;
 using MetroFramework.Controls;
@@ -125,13 +126,16 @@ namespace ConquerLoader.Forms
                     Core.LogWritter.Write("Using existing CLHook.dll");
                 }
             }
-            if (!File.Exists(Path.Combine(Directory.GetCurrentDirectory(), "ConquerCipherHook.dll")))
+            // Refreshed whenever it differs, not only when it is missing - see
+            // the same block in MainLite.
+            string CipherHookPath = Path.Combine(WorkingDir, "ConquerCipherHook.dll");
+            if (SafeIO.DiffersFrom(CipherHookPath, Properties.Resources.ConquerCipherHook))
             {
-                Core.LogWritter.Write("Generated ConquerCipherHook.dll");
-                SafeIO.TryWriteAllBytes(Path.Combine(WorkingDir, "ConquerCipherHook.dll"), Properties.Resources.ConquerCipherHook, ex => Core.LogWritter.Write(ex.ToString()));
+                Core.LogWritter.Write("Writing ConquerCipherHook.dll");
+                SafeIO.TryWriteAllBytes(CipherHookPath, Properties.Resources.ConquerCipherHook, ex => Core.LogWritter.Write(ex.ToString()));
             } else
             {
-                Core.LogWritter.Write("Using existing ConquerCipherHook.dll");
+                Core.LogWritter.Write("ConquerCipherHook.dll is up to date");
             }
         }
 
@@ -340,6 +344,8 @@ namespace ConquerLoader.Forms
                         + Environment.NewLine + "SERVER_VERSION=" + SelectedServer.ServerVersion
                         + Environment.NewLine + "SERVERNAME_MEMORYADDRESS=" + SelectedServer.ServerNameMemoryAddress
                         + Environment.NewLine + "DISABLE_AUTOFIX_FLASH=" + (LoaderConfig.DisableAutoFixFlash ? "1" : "0")
+                        + Environment.NewLine + "MAX_FPS=" + FrameRateLimit.Resolve(LoaderConfig)
+                        + Environment.NewLine + "FPS_DEBUG=" + (LoaderConfig.FpsDebug ? "1" : "0")
                         );
                     Core.LogWritter.Write("Created the Hook Configuration");
                     // Modify Setup of client

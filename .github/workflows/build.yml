@@ -4,9 +4,12 @@
 # updates the client before starting it, and the exe players run should come out
 # of a workflow rather than off whichever laptop built it last. See FORK.md.
 #
-# Only ConquerLoader.csproj is built. The solution also carries two C++ hook
-# projects and CLServer, none of which this fork changes and none of which is
-# needed to ship the loader.
+# ConquerLoader.csproj is what ships. ConquerCipherHook.vcxproj is built too but
+# nothing is shipped from it here: the loader carries that hook as an embedded
+# resource, so the DLL a player gets is the one committed under
+# ConquerLoader\Resources. Building it only proves the source that produced it
+# still compiles, which is the part that would otherwise rot unnoticed.
+# ConquerHook and CLServer this fork does not touch.
 name: build
 
 on:
@@ -38,6 +41,18 @@ jobs:
         run: >
           msbuild ConquerLoader\ConquerLoader\ConquerLoader.csproj
           -t:Build -p:Configuration=Release
+          -p:SolutionDir=${{ github.workspace }}\ConquerLoader\
+          -v:minimal -nologo
+
+      # The frame limiter lives in here, and nothing else in this workflow would
+      # notice if it stopped compiling - the loader builds perfectly well against
+      # the DLL already committed as a resource. Win32 because the client is
+      # 32-bit, and Restore because Detours arrives through packages.config.
+      - name: Build the cipher hook
+        run: >
+          msbuild ConquerCipherHook\ConquerCipherHook.vcxproj
+          -t:Restore;Build -p:RestorePackagesConfig=true
+          -p:Configuration=Release -p:Platform=Win32
           -p:SolutionDir=${{ github.workspace }}\ConquerLoader\
           -v:minimal -nologo
 

@@ -36,10 +36,12 @@ and this is the repository that makes it possible — upstream is open source, s
 | `CLCore/Models/ServerConfiguration.cs` | **One field**, `PatchManifestUrl`. Null or empty — which is what every existing `config.json` has — turns patching off and the loader behaves exactly as it always did |
 | `ConquerLoader/Core.cs` | **One method**, `RunAutoPatch`, returning the same `PluginPreLaunchResult` the plugin hook already uses so both launch paths reuse the cancel-launch plumbing |
 | `ConquerLoader/Forms/Main.cs`, `Forms/WPF/MainLite.xaml.cs` | **Six lines each**, calling it immediately before `RunPreLaunchPlugins` |
-| `CLCore/ClientOptions/` | **New.** `WingVisibility`, the Hide Wings toggle - see below |
-| `CLCore/Models/LoaderConfig.cs` | **One field**, `HideWings`. Absent from a `config.json` means false, so an existing one behaves as it always did |
-| `ConquerLoader/Forms/WPF/MainLite.xaml` + `.xaml.cs` | **One card** in the Options panel, in the same shape as the FPS Unlock one beside it |
-| `Tests/CLCore.Tests/` | **New.** 65 tests over the path guard, the manifest validation, the compare-and-install pair and the wing rewrite |
+| `CLCore/ClientOptions/` | **New.** `WingVisibility`, the Hide Wings toggle, and `FrameRateLimit`, the frame cap - both below |
+| `CLCore/Models/LoaderConfig.cs` | **Two fields**, `HideWings` and `FpsLimit`. Absent from a `config.json` means false and 60, so an existing one gets the cap without being edited |
+| `ConquerCipherHook/FpsLimiter.*` | **New.** The frame cap itself, in the hook that is already injected into the client |
+| `ConquerLoader/Forms/WPF/MainLite.xaml` + `.xaml.cs` | **Two cards** in the Options panel: Hide Wings, and the frame cap that replaced the FPS Unlock toggle |
+| `ConquerLoader/Core.cs` | **One method**, `SafeIO.DiffersFrom`, so a changed hook DLL reaches an install that already has an older one |
+| `Tests/CLCore.Tests/` | **New.** 78 tests over the path guard, the manifest validation, the compare-and-install pair, the wing rewrite and the frame cap |
 | every `*.csproj` | `TargetFrameworkVersion` v4.6.2 → **v4.8** |
 | `ConquerLoader/Models/ServersDatGenerator.cs` | **One method**, `ResolveToIPv4`, so `LoginHost` may be a hostname |
 | `CLCore/SocketSystem.cs` | **One method**, `CLClient.EnsureReachable`, bounding the CLServer connect |
@@ -149,6 +151,127 @@ every launch.
 player asked to hide, or hide wings they asked for. Every outcome is written to
 `conquerloader.log`, prefixed `[Wings]`.
 
+## The frame cap
+
+The Options panel used to carry an **FPS Unlock** toggle. It did nothing. The
+loader stored it in `config.json` and read it back only to draw the toggle -
+nothing downstream ever looked at it, and there was no cap in the client for it
+to have removed. It is now `Unlimited`, sitting beside the cap it turns off.
+
+**The cap is not about electricity.** The client has no limiter of its own, so
+it draws as fast as the machine allows - 700 FPS on a current GPU - and it
+advances animations a step per frame rather than per unit of time. Uncapped, the
+whole game runs at ten times the speed it was drawn for. 60 is the default and
+30 through 144 are offered; a `config.json` may hold any value between 10 and
+1000 and it is honoured, and anything outside that falls back to 60.
+
+`FrameRateLimit.Resolve` is the single place that turns the two settings into
+one number, because two launch paths and two settings screens have to agree on
+it. The number reaches the client as `MAX_FPS` in `CLHook.ini`, where 0 means no
+cap - so an install whose loader predates this reads 0 and behaves exactly as it
+always did.
+
+### Where it is enforced
+
+In `ConquerCipherHook`, which the loader already injects into every 6300 client.
+`FpsLimiter_Install` waits for `d3d8.dll`, creates a throwaway device, reads slot
+15 of its vtable - `IDirect3DDevice8::Present` - and detours the function that
+address points at, sleeping in front of it until the frame is due.
+
+**The throwaway device is read for one address and then released; nothing about
+its own vtable is patched.** This d3d8.dll gives every device a private copy of
+the vtable, allocated a few hundred bytes past the device itself, so overwriting
+a slot there would cap that one device and nothing else - which is exactly the
+version of this that was written first, and it silently did nothing. What the
+copies share is what they point at: slot 15 of a device made by the limiter and
+slot 15 of a device made anywhere else hold the same address inside `d3d8.dll`.
+
+Detouring the function rather than the slot also means there is no race to lose
+against the client's own graphics startup, and no need to hook
+`Direct3DCreate8` and wait to be handed the real device: a device the client
+created before the DLL was injected is capped just the same.
+
+### The client presents three times per frame
+
+**A cap on `Present` calls is not a cap on frames, and in this client the two
+differ by a factor of three.** Pacing every call gave exactly a third of the
+number asked for - 60 became 20 - and the reason is not that the cap missed:
+measured in game, uncapped, the client made **2151 `Present` calls a second
+while reporting 700 FPS**, and under a 60 cap it made **exactly 60.0 a second
+while reporting 19**. The pacing was hitting its target perfectly. The target
+was the wrong unit.
+
+The three calls are not alike, which is what makes them separable. The gaps
+between them repeat, indefinitely and to three decimal places:
+
+```
+0.025 ms    0.162 ms    1.207 ms    (sum 1.394 ms = 717 frames/s)
+```
+
+One of the three is the frame - the client thinking and drawing - and the other
+two are that same finished frame going out again microseconds later. So a call
+is paced when the client did a frame's worth of work in front of it, and the
+re-presents go through untouched.
+
+"A frame's worth" is measured against the largest gap seen in the last 32 calls
+rather than against a fixed number of milliseconds, because no fixed number is
+right for both a client spending 1.2 ms a frame and one spending 20. **Half the
+maximum** is the threshold: it separates the observed 1.207 from the 0.162 with
+room to spare, and - the part that matters more - it leaves a client that
+presents once per frame behaving exactly as it did, because all of its gaps are
+the same size and so all of them clear half the maximum. A rule that paced only
+the single largest gap would have quietly run such a client at three times its
+cap. Gaps over 100 ms are kept out of that history: a map load is not a frame,
+and admitting one would raise the maximum so far that nothing cleared half of it
+again and the cap would come off until it aged out.
+
+The gap being compared is the client's own - the time between two calls with any
+wait this hook injected subtracted back out - so the shape does not change when
+a cap is switched on, and the classification holds at 30 FPS as well as at 700.
+
+Both shapes are covered by a harness that replays the measured pattern against
+the real limiter: at a cap of 60 the three-present client comes out at 59.8
+frames/s (179 presents/s) and a one-present client at 59.6.
+
+### Pacing
+
+The pacing carries its deadline forward by one period per frame rather than
+recomputing it from the clock, so a frame that overruns is absorbed by the next
+one instead of the cap drifting slow; a stall long enough to owe more than four
+frames resyncs instead, so alt-tabbing does not come back to a burst of catch-up
+frames. `timeBeginPeriod(1)` goes in with the hook, and the last millisecond
+before the deadline is yielded rather than slept, because `Sleep` is only
+accurate to the timer period.
+
+Diagnostics go to `OutputDebugStringA` prefixed `[FpsLimiter]` - visible in
+DebugView, and nothing on a player's disk. A failure anywhere leaves the client
+uncapped, which is where it started.
+
+### Measuring it
+
+`"FpsDebug": true` in `config.json` writes `FPS_DEBUG=1` into `CLHook.ini` and
+the hook then appends a block to `CLHook.fps.log` beside `conquer.exe` every ten
+seconds: how many times `Present` was called, how those calls were spaced, and
+which devices and windows they went to. It installs the hook even with no cap
+configured, so the uncapped client can be measured too. There is no UI for it.
+
+It is worth carrying because **the number the client draws on screen is its own
+count of rendered frames, and that is not the quantity this paces.** When the
+two disagree - a cap of 60 with the client reporting 20 - nothing outside the
+process can say which of them is wrong, and the gap list settles it: several
+`Present` calls microseconds apart followed by a long pause is one rendered
+frame being presented more than once, and the cap is then counting the wrong
+thing rather than missing its target.
+
+### Why the hook DLL is now overwritten
+
+`GenerateRequiredDLL` used to write the hook DLLs out of the loader resources
+only when the file was **absent**, logging "Using existing" otherwise. Every
+install that already had a client therefore kept whatever hook it first got,
+forever - so a loader shipping a fixed hook would have fixed nothing for anybody
+who already plays here. `SafeIO.DiffersFrom` compares the bytes, and
+`ConquerCipherHook.dll` is rewritten when they differ.
+
 ## Reaching the server by name
 
 These three predate the patcher and were carried over from the fork of
@@ -200,6 +323,17 @@ msbuild ConquerLoader\ConquerLoader\ConquerLoader.csproj -t:Restore -p:RestorePa
 msbuild ConquerLoader\ConquerLoader\ConquerLoader.csproj -t:Build -p:Configuration=Release -p:SolutionDir=<repo>\ConquerLoader\
 dotnet test ConquerLoader\Tests\CLCore.Tests\CLCore.Tests.csproj
 ```
+
+The hook that carries the frame cap is a separate, 32-bit, C++ build:
+
+```
+msbuild ConquerCipherHook\ConquerCipherHook.vcxproj -t:Restore;Build -p:RestorePackagesConfig=true -p:Configuration=Release -p:Platform=Win32 -p:SolutionDir=<repo>\ConquerLoader```
+
+**It is not a build input for the loader.** The loader embeds
+`ConquerLoader/Resources/ConquerCipherHook.dll` as a resource, so changing the
+hook means building it and committing the new DLL over that one. CI builds the
+vcxproj to prove the source still compiles, and nothing more - a byte-compare
+against the committed DLL would only prove which toolset built it.
 
 Output is `ConquerLoader/Release/ConquerLoader.exe`, ~47 MB — Costura.Fody packs
 every dependency, and the two `VC_redist` installers upstream embeds, into the

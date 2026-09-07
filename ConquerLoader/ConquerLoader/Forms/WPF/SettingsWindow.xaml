@@ -471,7 +471,7 @@
                                 <CheckBox x:Name="tglDisableAutoFixFlash" Margin="0,0,16,14" Checked="TglDisableAutoFixFlash_CheckedChanged" Unchecked="TglDisableAutoFixFlash_CheckedChanged" Content="Disable AutoFix Flash" />
                                 <CheckBox x:Name="tglDisableScreenChanges" Margin="0,0,0,14" Checked="TglDisableScreenChanges_CheckedChanged" Unchecked="TglDisableScreenChanges_CheckedChanged" Content="Disable Screen Changes" />
                                 <CheckBox x:Name="tglUseCustomDLLs" Margin="0,0,16,14" Checked="TglUseCustomDLLs_CheckedChanged" Unchecked="TglUseCustomDLLs_CheckedChanged" Content="Use Custom DLLs" />
-                                <CheckBox x:Name="tglFPSUnlock" Margin="0,0,0,14" Checked="TglFPSUnlock_CheckedChanged" Unchecked="TglFPSUnlock_CheckedChanged" Content="FPS Unlock" />
+                                <CheckBox x:Name="tglFPSUnlock" Margin="0,0,0,14" Checked="TglFPSUnlock_CheckedChanged" Unchecked="TglFPSUnlock_CheckedChanged" Content="Unlimited FPS" />
                             </UniformGrid>
                             <Border x:Name="importantInfoCard" Margin="0,8,0,0" Padding="14" Background="{StaticResource WarningSoftBrush}" CornerRadius="16" Visibility="Collapsed">
                                 <TextBlock x:Name="lblImportantInfo" Foreground="{StaticResource WarningTextBrush}" Style="{StaticResource BodyStyle}" />

@@ -1,4 +1,5 @@
 using CLCore;
+using CLCore.ClientOptions;
 using CLCore.Models;
 using ConquerLoader.Models;
 using System;
@@ -158,14 +159,18 @@ namespace ConquerLoader.Forms.WPF
                 Core.LogWritter.Write("Using existing CLHook.dll");
             }
 
-            if (!File.Exists(Path.Combine(Directory.GetCurrentDirectory(), "ConquerCipherHook.dll")))
+            // Refreshed whenever it differs, not only when it is missing: this
+            // is the hook that carries the frame limiter, and an install that
+            // already has an older copy would otherwise keep it forever.
+            string cipherHookPath = Path.Combine(workingDir, "ConquerCipherHook.dll");
+            if (SafeIO.DiffersFrom(cipherHookPath, Properties.Resources.ConquerCipherHook))
             {
-                Core.LogWritter.Write("Generated ConquerCipherHook.dll");
-                SafeIO.TryWriteAllBytes(Path.Combine(workingDir, "ConquerCipherHook.dll"), Properties.Resources.ConquerCipherHook, ex => Core.LogWritter.Write(ex.ToString()));
+                Core.LogWritter.Write("Writing ConquerCipherHook.dll");
+                SafeIO.TryWriteAllBytes(cipherHookPath, Properties.Resources.ConquerCipherHook, ex => Core.LogWritter.Write(ex.ToString()));
             }
             else
             {
-                Core.LogWritter.Write("Using existing ConquerCipherHook.dll");
+                Core.LogWritter.Write("ConquerCipherHook.dll is up to date");
             }
         }
 
@@ -294,6 +299,7 @@ namespace ConquerLoader.Forms.WPF
             ApplyWindowTitle();
             Core.LogWritter.Write("Loaded config.json");
             btnStart.IsEnabled = LoaderConfig.Servers.Count > 0;
+            SetFpsSelectionFromConfig();
             tglFPSUnlock.IsChecked = LoaderConfig.FPSUnlock;
             tglHideWings.IsChecked = LoaderConfig.HideWings;
             Constants.LicenseKey = LoaderConfig.LicenseKey;
@@ -418,9 +424,14 @@ namespace ConquerLoader.Forms.WPF
                         + Environment.NewLine + "HOSTNAME=" + SelectedServer.Hostname
                         + Environment.NewLine + "SERVER_VERSION=" + SelectedServer.ServerVersion
                         + Environment.NewLine + "SERVERNAME_MEMORYADDRESS=" + SelectedServer.ServerNameMemoryAddress
-                        + Environment.NewLine + "DISABLE_AUTOFIX_FLASH=" + (LoaderConfig.DisableAutoFixFlash ? "1" : "0"));
+                        + Environment.NewLine + "DISABLE_AUTOFIX_FLASH=" + (LoaderConfig.DisableAutoFixFlash ? "1" : "0")
+                        // 0 means no cap. Read by ConquerCipherHook, not by the
+                        // client - see CLCore.ClientOptions.FrameRateLimit.
+                        + Environment.NewLine + "MAX_FPS=" + FrameRateLimit.Resolve(LoaderConfig)
+                        + Environment.NewLine + "FPS_DEBUG=" + (LoaderConfig.FpsDebug ? "1" : "0"));
 
                     Core.LogWritter.Write("Created the Hook Configuration");
+                    Core.LogWritter.Write("[+] MAX_FPS is " + FrameRateLimit.Resolve(LoaderConfig) + " (0 = uncapped)");
 
                     if (!LoaderConfig.DisableScreenChanges)
                     {
@@ -856,11 +867,65 @@ namespace ConquerLoader.Forms.WPF
             }
         }
 
+        /// <summary>
+        /// Fills the cap dropdown from <see cref="FrameRateLimit.Choices"/> and
+        /// selects what the config resolves to.
+        ///
+        /// A config.json carrying a cap that is not one of the offered values -
+        /// hand-edited, or written by a later version - keeps it: the number is
+        /// added to the list rather than being rounded to the nearest offer.
+        /// </summary>
+        private void SetFpsSelectionFromConfig()
+        {
+            int limit = LoaderConfig != null && LoaderConfig.FpsLimit >= FrameRateLimit.MinimumLimit
+                        && LoaderConfig.FpsLimit <= FrameRateLimit.MaximumLimit
+                ? LoaderConfig.FpsLimit
+                : FrameRateLimit.DefaultLimit;
+
+            cbxFpsLimit.Items.Clear();
+            foreach (int choice in FrameRateLimit.Choices)
+            {
+                cbxFpsLimit.Items.Add(FpsChoiceText(choice));
+            }
+
+            string selected = FpsChoiceText(limit);
+            if (!cbxFpsLimit.Items.Contains(selected))
+            {
+                cbxFpsLimit.Items.Add(selected);
+            }
+
+            cbxFpsLimit.SelectedItem = selected;
+            cbxFpsLimit.IsEnabled = LoaderConfig == null || !LoaderConfig.FPSUnlock;
+        }
+
+        private string FpsChoiceText(int fps)
+        {
+            return fps + " FPS";
+        }
+
+        /// <summary>
+        /// Saved as soon as it is clicked rather than at launch, the same as the
+        /// two toggles beside it, so the choice survives closing the loader
+        /// without starting the game.
+        /// </summary>
+        private void CbxFpsLimit_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (LoaderConfig == null || cbxFpsLimit.SelectedItem == null) return;
+
+            int fps;
+            string text = cbxFpsLimit.SelectedItem.ToString().Replace(" FPS", string.Empty);
+            if (!int.TryParse(text, out fps)) return;
+
+            LoaderConfig.FpsLimit = fps;
+            Core.SaveLoaderConfig(LoaderConfig);
+        }
+
         private void TglFPSUnlock_CheckedChanged(object sender, RoutedEventArgs e)
         {
             if (LoaderConfig != null)
             {
                 LoaderConfig.FPSUnlock = tglFPSUnlock.IsChecked == true;
+                cbxFpsLimit.IsEnabled = !LoaderConfig.FPSUnlock;
                 Core.SaveLoaderConfig(LoaderConfig);
             }
         }
@@ -977,7 +1042,7 @@ namespace ConquerLoader.Forms.WPF
             txtLaunchTip.Text = T("mainLaunchTipDefault", "Choose a server first so the launch status and resolution stay in sync.");
             ApplyHeaderDescription();
             txtActionsDescription.Text = T("mainOptionsDescription", "Choose the resolution and FPS behavior before launching.");
-            txtFpsUnlockHint.Text = T("mainFpsUnlockHint", "Use this only when your client and server support it.");
+            txtFpsUnlockHint.Text = T("mainFpsLimitHint", "The client draws as fast as your machine allows and animates a step per frame, so uncapped makes everything run fast. Leave the cap on unless you have a reason not to.");
             ApplyTranslation("btnStartFirstRun", btnStartFirstRun, "Create My First Server");
             ApplyTranslation("btnSettings", btnOpenSettingsFromOverlay, "Open Settings");
             ApplyTranslation("lblAbout", btnAboutFromOverlay, "About");
@@ -988,10 +1053,10 @@ namespace ConquerLoader.Forms.WPF
             txtFirstRunStep3.Text = T("mainFirstRunStep3", "3. Save the server and come back here to launch the game.");
             ApplyTranslation("btnStart", btnStart, "ENTER");
             ApplyTranslation("btnSettings", btnSettings, "Settings");
-            ApplyTranslation("lblFPSUnlock", lblFPSUnlock, "Unlock FPS");
+            ApplyTranslation("lblFpsLimit", lblFPSUnlock, "Frame rate limit");
             ApplyTranslation("lblHideWings", lblHideWings, "Hide Wings");
             ApplyTranslation("lblAbout", lblAbout, "About");
-            ApplyTranslation("commonEnabled", tglFPSUnlock, "Enabled");
+            ApplyTranslation("commonUnlimited", tglFPSUnlock, "Unlimited");
             ApplyTranslation("commonEnabled", tglHideWings, "Enabled");
             noty.Visible = true;
             txtProgressValue.Text = "0%";

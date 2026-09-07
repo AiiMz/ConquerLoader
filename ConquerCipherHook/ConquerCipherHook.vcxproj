@@ -80,6 +80,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="buffer.h" />
+    <ClInclude Include="FpsLimiter.h" />
     <ClInclude Include="hook.h" />
     <ClInclude Include="LegacyCipher.h" />
     <ClInclude Include="stdafx.h" />
@@ -90,6 +91,7 @@
     <ClCompile Include="CFlashFix.cpp" />
     <ClCompile Include="CFlashFix.h" />
     <ClCompile Include="ConquerCipherHook.cpp" />
+    <ClCompile Include="FpsLimiter.cpp" />
     <ClCompile Include="dllmain.cpp">
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</CompileAsManaged>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
