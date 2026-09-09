@@ -48,10 +48,39 @@ jobs:
       # notice if it stopped compiling - the loader builds perfectly well against
       # the DLL already committed as a resource. Win32 because the client is
       # 32-bit, and Restore because Detours arrives through packages.config.
+      #
+      # RESTORE AND BUILD ARE TWO INVOCATIONS, exactly as the loader's own steps
+      # above are, and combining them is not a tidier way to write the same
+      # thing. `-t:Restore;Build` evaluates the project ONCE, before Restore has
+      # run, so the conditional import of
+      #     ..\ConquerLoader\packages\Detours.4.0.1\build\native\Detours.targets
+      # is skipped - the file does not exist yet - and the build then runs
+      # without the include path that import contributes.
+      #
+      # It fails as `error C1083: Cannot open include file: 'detours.h'`, which
+      # names neither NuGet nor the import and sends you looking at the compiler.
+      # The project HAS a guard meant to produce a readable error for exactly
+      # this, EnsureNuGetPackageBuildImports, and it cannot fire: its Exists()
+      # check runs at target time, by which point Restore has created the file
+      # it is looking for. The guard passes and the build proceeds without the
+      # import it was guarding.
+      #
+      # It only ever fails on a clean checkout, which is why it was invisible
+      # locally - a developer machine has the package from a previous build, so
+      # the import is there at evaluation time and the combined form works. This
+      # step was added in be839db and failed on every run until it was split.
+      - name: Restore the cipher hook
+        run: >
+          msbuild ConquerCipherHook\ConquerCipherHook.vcxproj
+          -t:Restore -p:RestorePackagesConfig=true
+          -p:Configuration=Release -p:Platform=Win32
+          -p:SolutionDir=${{ github.workspace }}\ConquerLoader\
+          -v:minimal -nologo
+
       - name: Build the cipher hook
         run: >
           msbuild ConquerCipherHook\ConquerCipherHook.vcxproj
-          -t:Restore;Build -p:RestorePackagesConfig=true
+          -t:Build
           -p:Configuration=Release -p:Platform=Win32
           -p:SolutionDir=${{ github.workspace }}\ConquerLoader\
           -v:minimal -nologo
