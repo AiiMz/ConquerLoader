@@ -22,7 +22,7 @@
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <CharacterSet>Unicode</CharacterSet>
-    <UseOfMfc>Static</UseOfMfc>
+    <UseOfMfc>false</UseOfMfc>
     <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -30,7 +30,7 @@
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
-    <UseOfMfc>Static</UseOfMfc>
+    <UseOfMfc>false</UseOfMfc>
     <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -56,6 +56,8 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;CSV3HOOK_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <!-- Explicit because UseOfMfc used to imply it. See the Release group. -->
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -70,6 +72,21 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;CSV3HOOK_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <!--
+        EXPLICIT, AND LOAD-BEARING. This project never set RuntimeLibrary; it
+        got the static CRT as a side effect of UseOfMfc=Static, which was
+        template cruft - nothing here includes an MFC header, and stdafx.h
+        pulls in windows.h and nothing else. Dropping UseOfMfc without this
+        line would silently fall back to the default MultiThreadedDLL, and this
+        DLL is injected into the client on players' machines: it would then
+        need the VC++ 2022 redistributable installed, on a population running a
+        client that already ships its own VC90 runtimes because it cannot
+        assume any.
+
+        The shipped DLL imports only WS2_32, USER32, WINMM and KERNEL32 - no
+        CRT at all - and that stays true with this set.
+      -->
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

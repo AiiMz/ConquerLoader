@@ -44,6 +44,7 @@ and this is the repository that makes it possible — upstream is open source, s
 | `ConquerLoader/Core.cs` | **One method**, `SafeIO.DiffersFrom`, so a changed hook DLL reaches an install that already has an older one |
 | `Tests/CLCore.Tests/` | **New.** 78 tests over the path guard, the manifest validation, the compare-and-install pair, the wing rewrite and the frame cap |
 | every `*.csproj` | `TargetFrameworkVersion` v4.6.2 → **v4.8** |
+| `ConquerCipherHook.vcxproj` | **`UseOfMfc` Static → false**, plus an explicit `RuntimeLibrary` — below |
 | `ConquerLoader/Models/ServersDatGenerator.cs` | **One method**, `ResolveToIPv4`, so `LoginHost` may be a hostname |
 | `CLCore/SocketSystem.cs` | **One method**, `CLClient.EnsureReachable`, bounding the CLServer connect |
 | `CLCore/Constants.cs` | **One flag**, `EnableCLServerConnections`, now `false` |
@@ -338,6 +339,37 @@ process can say which of them is wrong, and the gap list settles it: several
 `Present` calls microseconds apart followed by a long pause is one rendered
 frame being presented more than once, and the cap is then counting the wrong
 thing rather than missing its target.
+
+### The hook does not use MFC, and said it did
+
+`ConquerCipherHook.vcxproj` carried `<UseOfMfc>Static</UseOfMfc>` in both
+configurations. Nothing in the project uses MFC — `stdafx.h` includes
+`targetver.h` and `windows.h` and nothing else, and no source names an `afx`
+header. It is template cruft from whenever the project was created.
+
+It stopped being harmless when `windows-latest` moved to **Visual Studio 18**,
+whose image does not carry the MFC libraries:
+
+```
+Microsoft.CppBuild.targets(504,5): error MSB8041: MFC libraries are required
+for this project. Install them from the Visual Studio installer.
+```
+
+A developer machine with the C++ desktop workload has MFC, so this only ever
+failed on a runner.
+
+**Turning it off needed a second line, and that is the part worth knowing.**
+This project never set `RuntimeLibrary`; it was getting the **static** CRT as a
+side effect of `UseOfMfc=Static`. Dropping the MFC setting alone would have
+fallen back to the default `MultiThreadedDLL` — and this DLL is injected into
+the client on players' machines, so it would then have needed the VC++ 2022
+redistributable installed, on a population running a client that ships its own
+VC90 runtimes precisely because it cannot assume any. So `RuntimeLibrary` is now
+stated outright, `MultiThreaded` for Release and `MultiThreadedDebug` for Debug.
+
+Checked rather than assumed: the shipped `Resources\ConquerCipherHook.dll`
+imports `WS2_32`, `USER32`, `WINMM` and `KERNEL32` and no CRT at all, and a
+clean-clone build with MFC off imports exactly the same four.
 
 ### Why the hook DLL is now overwritten
 
