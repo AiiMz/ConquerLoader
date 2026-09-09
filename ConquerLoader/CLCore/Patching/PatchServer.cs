@@ -76,14 +76,36 @@ namespace CLCore.Patching
                 return response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
         }
 
-        /// <summary>
-        /// Fetches one file and installs it, verified. Retries a few times,
-        /// because the failure this is aimed at is a dropped connection on a
-        /// domestic line rather than a server that is down - and a run that gave
-        /// up on file 300 of 844 would leave an install in a state the next run
-        /// has to work out from scratch anyway.
-        /// </summary>
+        /// <summary>Fetches one file and installs it, verified.</summary>
         public void Download(ManifestFile entry, string clientRoot)
+        {
+            Fetch(entry, body =>
+            {
+                FileInstaller.Install(clientRoot, entry, body);
+                return null;
+            });
+        }
+
+        /// <summary>
+        /// The same fetch, stopping one step short: the verified bytes are left
+        /// in the sibling .part file and its path is returned.
+        ///
+        /// For the loader updating itself, which cannot go through
+        /// <see cref="FileInstaller.Install"/> because a running image cannot be
+        /// deleted. See <see cref="SelfUpdate"/>.
+        /// </summary>
+        public string DownloadStaged(ManifestFile entry, string clientRoot)
+        {
+            return Fetch(entry, body => FileInstaller.Stage(clientRoot, entry, body));
+        }
+
+        /// <summary>
+        /// One file, retried a few times, because the failure this is aimed at is
+        /// a dropped connection on a domestic line rather than a server that is
+        /// down - and a run that gave up on file 300 of 844 would leave an
+        /// install in a state the next run has to work out from scratch anyway.
+        /// </summary>
+        private string Fetch(ManifestFile entry, Func<Stream, string> sink)
         {
             Exception last = null;
 
@@ -93,9 +115,7 @@ namespace CLCore.Patching
                 {
                     using (HttpResponseMessage response = Send(ClientPaths.FileUrl(_baseUrl, entry.Path), NotFoundIsMissingFile))
                     using (Stream body = response.Content.ReadAsStreamAsync().GetAwaiter().GetResult())
-                        FileInstaller.Install(clientRoot, entry, body);
-
-                    return;
+                        return sink(body);
                 }
                 catch (Exception ex) when (IsTransient(ex))
                 {

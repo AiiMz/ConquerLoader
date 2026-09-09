@@ -37,6 +37,44 @@ namespace CLCore.Patching
         public static void Install(string clientRoot, ManifestFile entry, Stream content)
         {
             string destination = ClientPaths.Resolve(clientRoot, entry.Path);
+            string partial = Stage(clientRoot, entry, content);
+
+            try
+            {
+                // File.Move has no overwrite overload on .NET Framework, so the
+                // destination is removed first. That is a window in which the
+                // file does not exist - acceptable because the client is not
+                // running yet (this is a PRE-launch step) and because the
+                // alternative, copying over the original in place, is the
+                // half-written file this whole class exists to avoid.
+                if (File.Exists(destination))
+                    File.Delete(destination);
+
+                File.Move(partial, destination);
+            }
+            finally
+            {
+                Discard(partial);
+            }
+        }
+
+        /// <summary>
+        /// The first half of <see cref="Install"/>: writes and verifies the
+        /// sibling .part file and returns its path WITHOUT moving it into place.
+        /// The caller owns the file from then on and must move or discard it.
+        ///
+        /// It is split out for exactly one caller - <see cref="SelfUpdate"/>,
+        /// which cannot use the second half. A running executable can be renamed
+        /// but not deleted or overwritten, so the loader replacing itself needs
+        /// the verified bytes on disk and its own way of putting them in place.
+        /// Sharing the first half means the loader is verified by the same code
+        /// as every other file, which is the half that matters: the download is
+        /// hashed while it is written, and bytes that do not match the manifest
+        /// never become a file anybody can run.
+        /// </summary>
+        public static string Stage(string clientRoot, ManifestFile entry, Stream content)
+        {
+            string destination = ClientPaths.Resolve(clientRoot, entry.Path);
             string directory = Path.GetDirectoryName(destination);
 
             // New content arrives in directories that may not exist yet - a new
@@ -72,31 +110,34 @@ namespace CLCore.Patching
                         entry.Path + ": the downloaded bytes do not match the hash the manifest gave for them.");
                 }
 
-                // File.Move has no overwrite overload on .NET Framework, so the
-                // destination is removed first. That is a window in which the
-                // file does not exist - acceptable because the client is not
-                // running yet (this is a PRE-launch step) and because the
-                // alternative, copying over the original in place, is the
-                // half-written file this whole class exists to avoid.
-                if (File.Exists(destination))
-                    File.Delete(destination);
-
-                File.Move(partial, destination);
+                return partial;
             }
-            finally
+            catch (Exception)
             {
-                // Both the failure path and a successful move leave nothing
-                // behind. A .part file that survives a killed process is not
-                // swept by anything: it is inert, and the next attempt at the
-                // same file opens it FileMode.Create and reuses it. Walking
-                // 71,000 files to hunt for orphans would cost more than they do.
-                if (File.Exists(partial))
-                {
-                    try { File.Delete(partial); }
-                    catch (IOException) { }
-                    catch (UnauthorizedAccessException) { }
-                }
+                // A staged file that failed verification never becomes anybody's
+                // problem. On success the caller owns it instead, which is why
+                // this is a catch rather than a finally.
+                Discard(partial);
+                throw;
             }
+        }
+
+        /// <summary>
+        /// Removes a staged file, best-effort.
+        ///
+        /// A .part file that survives a killed process is not swept by anything:
+        /// it is inert, and the next attempt at the same file opens it
+        /// FileMode.Create and reuses it. Walking 71,000 files to hunt for
+        /// orphans would cost more than they do.
+        /// </summary>
+        public static void Discard(string partialPath)
+        {
+            if (string.IsNullOrEmpty(partialPath)) return;
+            if (!File.Exists(partialPath)) return;
+
+            try { File.Delete(partialPath); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
         }
     }
 }

@@ -25,6 +25,20 @@ namespace CLCore.Patching
 
         /// <summary>True when at least one file was actually written.</summary>
         public bool ChangedAnything;
+
+        /// <summary>
+        /// The loader replaced itself and the caller must start
+        /// <see cref="RelaunchImagePath"/> and stop being this process. Issue #53.
+        ///
+        /// NOTHING ELSE WAS PATCHED in a run that sets this. The content check is
+        /// left to the restarted process, so the files are compared by the loader
+        /// version that shipped with the manifest describing them rather than by
+        /// the one that is about to be replaced.
+        /// </summary>
+        public bool RelaunchRequired;
+
+        /// <summary>Where the replacement loader now is. Set with <see cref="RelaunchRequired"/>.</summary>
+        public string RelaunchImagePath;
     }
 
     /// <summary>
@@ -66,6 +80,19 @@ namespace CLCore.Patching
         /// </summary>
         public static PatchOutcome Run(string clientRoot, Uri baseUrl, TimeSpan timeout, Action<string> log, Action<int, int> progress)
         {
+            return Run(clientRoot, baseUrl, timeout, log, progress, null);
+        }
+
+        /// <summary>
+        /// As above, and additionally keeps the loader itself in step.
+        ///
+        /// <paramref name="runningImagePath"/> is the executable this process is
+        /// running from, or null to disable self-update entirely. Null is what
+        /// every test and every caller that is not the launch path passes, and it
+        /// is the behaviour this method had before issue #53.
+        /// </summary>
+        public static PatchOutcome Run(string clientRoot, Uri baseUrl, TimeSpan timeout, Action<string> log, Action<int, int> progress, string runningImagePath)
+        {
             if (clientRoot == null) throw new ArgumentNullException(nameof(clientRoot));
             if (baseUrl == null) throw new ArgumentNullException(nameof(baseUrl));
 
@@ -82,6 +109,14 @@ namespace CLCore.Patching
                 write(outcome.Summary);
                 return outcome;
             }
+
+            // Before the fetch, so an image left by the previous launch is cleared
+            // even on a run where the patch site turns out to be unreachable. It
+            // could not have been deleted by the process that replaced it - that
+            // process was still running from it.
+            int swept = SelfUpdate.SweepSuperseded(runningImagePath, write);
+            if (swept > 0)
+                write("Removed " + swept + " superseded loader image(s) from the previous update.");
 
             // Set the moment the first byte is written anywhere. It is what
             // separates "we never touched the install" from "we touched it and
@@ -110,6 +145,90 @@ namespace CLCore.Patching
 
                     write("Manifest " + manifest.Version + ", " + manifest.FileCount + " files. Hashing...");
 
+                    // ---------------------------------------------------------
+                    // The loader itself, before anything else. Issue #53.
+                    // ---------------------------------------------------------
+                    // FIRST, and alone in its run. A newer loader may read a
+                    // manifest this one cannot, so the content comparison belongs
+                    // to the version that shipped with the document describing it.
+                    ManifestFile loaderEntry = FindRunningImage(manifest, clientRoot, runningImagePath);
+
+                    if (loaderEntry != null && !MatchesOnDisk(loaderEntry, runningImagePath))
+                    {
+                        if (SelfUpdate.GuardIsSet())
+                        {
+                            // Already restarted once this launch and STILL out of
+                            // date. Almost certainly the published bytes do not
+                            // match the hash published for them - and the wrong
+                            // answer here is to try again, which is a launcher
+                            // that never launches on every machine at once. Say
+                            // so, patch the content, and let the player play.
+                            write("The loader is still out of date after restarting once. "
+                                + "Leaving it alone - the patch layer is publishing a loader that does not match its own hash.");
+                        }
+                        else
+                        {
+                            write("Loader out of date (" + loaderEntry.Path + ", " + Megabytes(loaderEntry.Size) + "). Updating it first.");
+
+                            string staged = null;
+
+                            try
+                            {
+                                staged = server.DownloadStaged(loaderEntry, clientRoot);
+
+                                string superseded = SelfUpdate.Replace(runningImagePath, staged);
+                                staged = null;
+
+                                outcome.ChangedAnything = true;
+                                outcome.RelaunchRequired = true;
+                                outcome.RelaunchImagePath = runningImagePath;
+                                outcome.Summary = "Loader updated; restarting it before checking the client files.";
+
+                                write("Replaced " + Path.GetFileName(runningImagePath)
+                                    + "; the previous one is " + Path.GetFileName(superseded) + " and is removed on the next launch.");
+                                write(outcome.Summary);
+
+                                return outcome;
+                            }
+                            catch (LoaderNotRestoredException ex)
+                            {
+                                // The only failure here that costs the player
+                                // anything: there is no loader at its own name any
+                                // more. Said now, while there is still a running
+                                // one to say it with, because the alternative is a
+                                // shortcut that stops working tomorrow.
+                                outcome.CanLaunch = false;
+                                outcome.Summary = ex.Message;
+                                outcome.Message =
+                                    "The loader could not finish updating itself, and could not be put back."
+                                    + Environment.NewLine + Environment.NewLine
+                                    + "Your working loader is now called:" + Environment.NewLine
+                                    + "    " + Path.GetFileName(ex.SupersededPath) + Environment.NewLine + Environment.NewLine
+                                    + "Rename it back to " + Path.GetFileName(ex.ExpectedPath) + " and start it again."
+                                    + Environment.NewLine
+                                    + "Nothing else about your install was changed.";
+
+                                write(outcome.Summary + Environment.NewLine + ex);
+                                return outcome;
+                            }
+                            catch (Exception ex) when (ex is IOException || ex is HttpRequestException || ex is UnauthorizedAccessException)
+                            {
+                                // EVERY OTHER FAILURE LEAVES THE INSTALL AS IT WAS,
+                                // so it must not stop the launch. A locked file
+                                // during the rename - a scanner reading a 47 MB exe
+                                // is the routine cause - would otherwise mean a
+                                // player cannot play because an update they did not
+                                // ask for could not be applied. The old loader is
+                                // still the one running, and it still works.
+                                write("Could not update the loader, carrying on with the one that is running: " + ex.Message);
+                            }
+                            finally
+                            {
+                                FileInstaller.Discard(staged);
+                            }
+                        }
+                    }
+
                     PatchPlan plan = PatchPlanner.Create(clientRoot, manifest);
 
                     write("up to date " + plan.UpToDateCount
@@ -117,20 +236,49 @@ namespace CLCore.Patching
                         + ", wrong size " + plan.WrongSizeCount
                         + ", changed " + plan.WrongContentCount);
 
-                    if (plan.IsUpToDate)
+                    // BELT AND BRACES, and the one that stops a bricked launcher.
+                    // Reaching FileInstaller with the running image means
+                    // File.Delete on it, which is a sharing violation, which is
+                    // counted as a file that could not be updated, which means DO
+                    // NOT LAUNCH - forever, because the next run does exactly the
+                    // same thing. The step above has already replaced the loader
+                    // or deliberately declined to; either way this loop never
+                    // touches it.
+                    //
+                    // Filtered out of the counts rather than skipped inside the
+                    // loop, so the file count and the byte total describe what
+                    // this loop will actually do.
+                    List<PlannedFile> downloads = new List<PlannedFile>();
+                    long bytesToDownload = 0;
+
+                    foreach (PlannedFile file in plan.Downloads)
+                    {
+                        if (ReferenceEquals(file.Entry, loaderEntry)) continue;
+
+                        downloads.Add(file);
+                        bytesToDownload += file.Entry.Size;
+                    }
+
+                    // Otherwise the two lines read as a contradiction - "changed 1"
+                    // followed by "up to date" - which is exactly the kind of log
+                    // a support conversation gets stuck on.
+                    if (loaderEntry != null && downloads.Count != plan.DownloadCount)
+                        write("The loader is not counted above; it is updated by its own path and never by this loop.");
+
+                    if (downloads.Count == 0)
                     {
                         outcome.Summary = "Client is up to date (manifest " + manifest.Version + ").";
                         write(outcome.Summary);
                         return outcome;
                     }
 
-                    int total = plan.DownloadCount;
+                    int total = downloads.Count;
                     int done = 0;
                     List<string> failures = new List<string>();
 
-                    write("Updating " + total + " file(s), " + Megabytes(plan.BytesToDownload) + "...");
+                    write("Updating " + total + " file(s), " + Megabytes(bytesToDownload) + "...");
 
-                    foreach (PlannedFile file in plan.Downloads)
+                    foreach (PlannedFile file in downloads)
                     {
                         touchedTheInstall = true;
 
@@ -199,6 +347,43 @@ namespace CLCore.Patching
 
                 return outcome;
             }
+        }
+
+        /// <summary>
+        /// The manifest entry that names the executable this process is running
+        /// from, or null if the layer carries no loader, if self-update is off,
+        /// or if this process is running from outside the client root.
+        ///
+        /// The last of those is the developer case and it matters: a loader run
+        /// from bin\Release against a client tree elsewhere must not rename
+        /// itself into that tree. <see cref="SelfUpdate.IsRunningImage"/> gets it
+        /// from resolving both sides to absolute paths rather than by any special
+        /// case here.
+        /// </summary>
+        private static ManifestFile FindRunningImage(Manifest manifest, string clientRoot, string runningImagePath)
+        {
+            if (string.IsNullOrEmpty(runningImagePath)) return null;
+            if (manifest == null || manifest.Files == null) return null;
+
+            foreach (ManifestFile entry in manifest.Files)
+                if (SelfUpdate.IsRunningImage(clientRoot, entry.Path, runningImagePath))
+                    return entry;
+
+            return null;
+        }
+
+        /// <summary>
+        /// Whether the file at <paramref name="fullPath"/> is already what
+        /// <paramref name="entry"/> describes. Size first, then hash, for the
+        /// reason PatchPlanner gives - though at one file the saving is only ever
+        /// the 47 MB read.
+        /// </summary>
+        private static bool MatchesOnDisk(ManifestFile entry, string fullPath)
+        {
+            if (!File.Exists(fullPath)) return false;
+            if (new FileInfo(fullPath).Length != entry.Size) return false;
+
+            return string.Equals(PatchPlanner.HashFile(fullPath), entry.Sha256, StringComparison.OrdinalIgnoreCase);
         }
 
         private static string Describe(PatchReason reason)

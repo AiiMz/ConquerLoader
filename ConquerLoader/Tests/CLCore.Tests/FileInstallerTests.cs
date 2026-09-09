@@ -158,5 +158,81 @@ namespace CLCore.Tests.Patching
             Assert.True(File.Exists(PathOf(entry.Path)));
             Assert.Equal(0, new FileInfo(PathOf(entry.Path)).Length);
         }
+
+        #region Stage - the half SelfUpdate uses
+
+        [Fact]
+        public void Stage_writes_the_verified_bytes_and_leaves_them_for_the_caller()
+        {
+            // The loader replacing itself needs the new bytes on disk, verified,
+            // but cannot let anything move them into place - a running image can
+            // be renamed and not overwritten. Issue #53.
+            byte[] content = Bytes("new loader");
+            ManifestFile entry = EntryFor("ConquerLoader.exe", content);
+
+            string staged = FileInstaller.Stage(_root, entry, new MemoryStream(content));
+
+            Assert.True(File.Exists(staged));
+            Assert.Equal(content, File.ReadAllBytes(staged));
+            Assert.EndsWith(FileInstaller.PartialSuffix, staged, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void Stage_does_not_touch_the_destination()
+        {
+            byte[] existing = Bytes("old loader");
+            byte[] content = Bytes("new loader");
+            ManifestFile entry = EntryFor("ConquerLoader.exe", content);
+
+            File.WriteAllBytes(PathOf(entry.Path), existing);
+
+            FileInstaller.Stage(_root, entry, new MemoryStream(content));
+
+            Assert.Equal(existing, File.ReadAllBytes(PathOf(entry.Path)));
+        }
+
+        [Fact]
+        public void Stage_verifies_by_the_same_rule_as_Install_and_keeps_nothing_that_fails()
+        {
+            // The point of sharing this half rather than writing a second one:
+            // bytes that do not match the manifest never become a file anybody
+            // can run, and that is worth more on an executable than anywhere else.
+            byte[] content = Bytes("new loader");
+            ManifestFile entry = EntryFor("ConquerLoader.exe", content);
+            entry.Sha256 = new string('0', 64);
+
+            Assert.Throws<InvalidDataException>(
+                () => FileInstaller.Stage(_root, entry, new MemoryStream(content)));
+
+            Assert.False(File.Exists(PathOf(entry.Path) + FileInstaller.PartialSuffix));
+            Assert.False(File.Exists(PathOf(entry.Path)));
+        }
+
+        [Fact]
+        public void Stage_rejects_a_short_download()
+        {
+            byte[] content = Bytes("new loader");
+            ManifestFile entry = EntryFor("ConquerLoader.exe", content);
+            entry.Size = content.Length + 1;
+
+            Assert.Throws<InvalidDataException>(
+                () => FileInstaller.Stage(_root, entry, new MemoryStream(content)));
+
+            Assert.False(File.Exists(PathOf(entry.Path) + FileInstaller.PartialSuffix));
+        }
+
+        [Fact]
+        public void Stage_refuses_a_path_that_escapes_the_client_root()
+        {
+            // Stage is reachable from the network like Install is, so it gets the
+            // path guard for the same reason rather than by inheritance.
+            byte[] content = Bytes("payload");
+            ManifestFile entry = EntryFor("../escaped.dll", content);
+
+            Assert.Throws<InvalidDataException>(
+                () => FileInstaller.Stage(_root, entry, new MemoryStream(content)));
+        }
+
+        #endregion
     }
 }

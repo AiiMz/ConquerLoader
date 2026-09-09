@@ -235,7 +235,21 @@ namespace ConquerLoader
                 baseUrl,
                 CLCore.Patching.ClientPatcher.DefaultTimeout,
                 line => LogWritter.Write("[Patch] " + line),
-                reportProgress);
+                reportProgress,
+                CLCore.Patching.SelfUpdate.RunningImagePath());
+
+            if (outcome.RelaunchRequired)
+            {
+                // The loader on disk is no longer the one running. Issue #53.
+                //
+                // Environment.Exit rather than a graceful close: this runs on the
+                // launch path with a window up and a BackgroundWorker mid-flight,
+                // and every orderly way out of here goes on to start the game with
+                // the process that has just been superseded. There is nothing to
+                // save - the patch step keeps no state, and config.json was
+                // written when the player changed it.
+                RestartAfterSelfUpdate(outcome.RelaunchImagePath);
+            }
 
             if (!outcome.CanLaunch)
             {
@@ -243,6 +257,35 @@ namespace ConquerLoader
             }
 
             return PluginPreLaunchResult.Success();
+        }
+
+        /// <summary>
+        /// Starts the replacement loader and stops being this one.
+        ///
+        /// IF THE RESTART CANNOT BE STARTED, CARRY ON. The new loader is in place
+        /// and verified either way, so the worst case is that this launch is
+        /// served by the old process and the next one picks up the new file. That
+        /// is strictly better than refusing to start the game because a Process
+        /// .Start failed.
+        /// </summary>
+        private static void RestartAfterSelfUpdate(string imagePath)
+        {
+            try
+            {
+                string[] all = Environment.GetCommandLineArgs();
+                string[] arguments = new string[Math.Max(0, all.Length - 1)];
+                if (arguments.Length > 0) Array.Copy(all, 1, arguments, 0, arguments.Length);
+
+                CLCore.Patching.SelfUpdate.Relaunch(imagePath, arguments, line => LogWritter.Write("[Patch] " + line));
+            }
+            catch (Exception ex)
+            {
+                LogWritter.Write("[Patch] The updated loader is in place but could not be started (" + ex.Message
+                    + "). Continuing with this one; the update takes effect next launch.");
+                return;
+            }
+
+            Environment.Exit(0);
         }
 
         /// <summary>

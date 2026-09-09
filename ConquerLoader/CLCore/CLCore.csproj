@@ -86,6 +86,7 @@
     <Compile Include="Patching\ManifestReader.cs" />
     <Compile Include="Patching\PatchPlanner.cs" />
     <Compile Include="Patching\PatchServer.cs" />
+    <Compile Include="Patching\SelfUpdate.cs" />
     <Compile Include="PluginSystem\IPreLaunchPlugin.cs" />
     <Compile Include="PluginSystem\IPlugin.cs" />
     <Compile Include="PluginSystem\Parameter.cs" />

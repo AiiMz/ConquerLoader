@@ -33,6 +33,7 @@ and this is the repository that makes it possible — upstream is open source, s
 | | |
 |---|---|
 | `CLCore/Patching/` | **New.** The whole patcher: manifest model and validation, the path guard, the compare step, the atomic installer, the HTTP client, and `ClientPatcher` on top of them |
+| `CLCore/Patching/SelfUpdate.cs` | **New.** The loader updating itself from the patch layer, so a loader bug is fixable after players have a copy — below |
 | `CLCore/Models/ServerConfiguration.cs` | **One field**, `PatchManifestUrl`. Null or empty — which is what every existing `config.json` has — turns patching off and the loader behaves exactly as it always did |
 | `ConquerLoader/Core.cs` | **One method**, `RunAutoPatch`, returning the same `PluginPreLaunchResult` the plugin hook already uses so both launch paths reuse the cancel-launch plumbing |
 | `ConquerLoader/Forms/Main.cs`, `Forms/WPF/MainLite.xaml.cs` | **Six lines each**, calling it immediately before `RunPreLaunchPlugins` |
@@ -109,6 +110,81 @@ failed patch leaves the install exactly as it was.
 **The patch target is the loader's own folder**, not the working directory:
 manifest paths are relative to the client *root*, and the working directory is
 an `Env_DX8` or `Env_DX9` subfolder whenever one of those is in use.
+
+## The loader updates itself
+
+Everything in the patch layer is inert data except one file: the loader. It
+shipped only inside the 1.4 GB base archive, so **the newest code in the project
+was also the only part of it that could never be fixed after a player had a
+copy** — nobody re-downloads 1.4 GB without a reason, and after the first invite
+wave the population would have fragmented by loader version permanently. That is
+backwards from where the risk is: the content files change weekly and cannot
+break a launch.
+
+So `ConquerLoader.exe` is now an entry in the manifest like any other, and the
+loader recognises the entry that names the file it is running from.
+
+**A running executable cannot be deleted or overwritten on Windows, but it can
+be renamed.** That is the whole mechanism. `FileInstaller` deletes and then
+moves, which on the running image is a sharing violation — counted as a file
+that could not be updated, which means *do not launch*. So "just add it to the
+manifest" is not a no-op that works by luck; it is a client that refuses to
+start, on every launch, permanently. `FileInstaller.Stage` is the download and
+verification half split out for this: the loader is hashed while it is written
+by the same code as every other file, and then `SelfUpdate.Replace` moves the
+running image aside and moves the replacement into its name.
+
+**The loader goes first and alone.** A new loader may read a manifest an old one
+cannot, so the content comparison belongs to the version that shipped with the
+document describing it. A run that replaces the loader touches nothing else and
+restarts.
+
+**One hop, enforced by an environment variable.** The restarted process carries
+`CONQUERLOADER_SELFUPDATED=1` and will not update itself again. Without it, a
+manifest naming a hash the published exe does not actually have would replace,
+restart, find itself out of date, and repeat — a launcher that never launches,
+on every machine at once, fixable only by a new download. When that happens the
+loader says so in the log, patches the content, and lets the player play.
+
+**The superseded image is `ConquerLoader.exe.old`, and the suffix is chosen
+rather than invented.** EternalAbyssCo's `ManifestBuilder.IsBackup` already
+keeps `*.old` out of the patch layer and `New-ClientArchive.ps1` already cuts it
+from the shipped archive, both by the same test — a novel suffix would need both
+of them taught about it and would be forgotten in one. It is swept at the *start*
+of the next run, because at the end of the run that created it the file is still
+mapped by the process doing the sweeping. The sweep is scoped to this image's
+own name: deleting `*.old` beside the loader would be deleting a player's files
+because they happened to name one the way this names its own.
+
+### What it does on failure
+
+| | |
+|---|---|
+| The download or the rename failed | **Launch.** The old loader is still the one running and it still works. Refusing to play because an update nobody asked for could not be applied is the wrong trade |
+| The rename succeeded and the replacement failed | **The first move is undone.** The install is exactly as it was |
+| Both moves failed | **Do not launch**, and say where the working loader is. This is the only outcome here that costs a player anything: nothing is at `ConquerLoader.exe` any more, so it has to be said while there is still a running loader to say it with. `LoaderNotRestoredException` exists to be distinguishable |
+| Already restarted once and still out of date | **Launch**, and name the bad publish in the log |
+
+### Rehearsed rather than reasoned about
+
+Against a live process, a real `HttpListener`, and a manifest from the real
+`client-manifest`:
+
+| | |
+|---|---|
+| Renaming a running image | The process kept running and kept its own identity; the replacement took its name |
+| The sweep | Refused while the previous image was still mapped, removed it on the next run. This is the measurement the "sweep at the start" design rests on |
+| Loader first, alone | A run that replaced the loader left `ini/a.dat` at the old version, and the restarted run patched it |
+| The guard | With `CONQUERLOADER_SELFUPDATED` set and the loader still stale, nothing was replaced, nothing restarted, and the launch went ahead |
+| The real 45 MB exe | Staged into the real 3,188-file layer by `client-manifest add` and verified against the manifest it produced |
+
+**And it caught a bug that read correctly.** `QuoteArguments` escaped every
+backslash, which is what "escape the special characters" looks like — but
+`CommandLineToArgvW` treats a backslash as an escape *only* before a quote, so
+the restarted loader received `D:\\Some Dir\\Conquer`. Doubling is right for a
+run of backslashes before a quote or at the end of a quoted argument, and wrong
+everywhere else. Nothing about rereading the method showed it; the first
+restarted process did.
 
 ## Hide Wings
 
