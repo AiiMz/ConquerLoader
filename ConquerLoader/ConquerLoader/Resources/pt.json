@@ -897,6 +897,14 @@
   },
   {
     "id": "mainFpsLimitHint",
-    "text": "O cliente desenha tao rapido quanto a maquina permite e avanca a animacao um passo por quadro, entao sem limite tudo corre rapido demais. Deixe o limite ligado a menos que tenha um motivo para desliga-lo."
+    "text": "Sem limite o jogo corre varias vezes mais rapido. Deixe o limite ligado."
+  },
+  {
+    "id": "lblHideWings",
+    "text": "Ocultar asas"
+  },
+  {
+    "id": "mainHideWingsHint",
+    "text": "Oculta todas as asas, as suas e as dos outros. Os atributos nao mudam."
   }
 ]

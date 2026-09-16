@@ -1042,7 +1042,8 @@ namespace ConquerLoader.Forms.WPF
             txtLaunchTip.Text = T("mainLaunchTipDefault", "Choose a server first so the launch status and resolution stay in sync.");
             ApplyHeaderDescription();
             txtActionsDescription.Text = T("mainOptionsDescription", "Choose the resolution and FPS behavior before launching.");
-            txtFpsUnlockHint.Text = T("mainFpsLimitHint", "The client draws as fast as your machine allows and animates a step per frame, so uncapped makes everything run fast. Leave the cap on unless you have a reason not to.");
+            txtFpsUnlockHint.Text = T("mainFpsLimitHint", "Uncapped runs the game several times too fast. Leave the cap on.");
+            txtHideWingsHint.Text = T("mainHideWingsHint", "Hides all wings, yours and everyone else's. Stats are unchanged.");
             ApplyTranslation("btnStartFirstRun", btnStartFirstRun, "Create My First Server");
             ApplyTranslation("btnSettings", btnOpenSettingsFromOverlay, "Open Settings");
             ApplyTranslation("lblAbout", btnAboutFromOverlay, "About");

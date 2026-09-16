@@ -849,17 +849,18 @@
                                                 <TextBlock x:Name="lblFPSUnlock"
                                                    FontSize="15"
                                                    FontWeight="SemiBold"
+                                                   TextWrapping="Wrap"
                                                    Foreground="{StaticResource TextPrimaryBrush}" />
                                                 <TextBlock x:Name="txtFpsUnlockHint"
                                                    Margin="0,6,0,0"
                                                    Style="{StaticResource BodyStyle}"
-                                                   Text="The client draws as fast as your machine allows and animates a step per frame, so uncapped makes everything run fast. Leave the cap on unless you have a reason not to." />
+                                                   Text="Uncapped runs the game several times too fast. Leave the cap on." />
                                             </StackPanel>
 
                                             <StackPanel Grid.Column="2"
                                                 VerticalAlignment="Center">
                                                 <ComboBox x:Name="cbxFpsLimit"
-                                                  MinWidth="140"
+                                                  MinWidth="104"
                                                   Style="{StaticResource InputComboBoxStyle}"
                                                   SelectionChanged="CbxFpsLimit_SelectionChanged" />
                                                 <CheckBox x:Name="tglFPSUnlock"
@@ -890,11 +891,12 @@
                                                 <TextBlock x:Name="lblHideWings"
                                                    FontSize="15"
                                                    FontWeight="SemiBold"
+                                                   TextWrapping="Wrap"
                                                    Foreground="{StaticResource TextPrimaryBrush}" />
                                                 <TextBlock x:Name="txtHideWingsHint"
                                                    Margin="0,6,0,0"
                                                    Style="{StaticResource BodyStyle}"
-                                                   Text="Stops wings being drawn, on you and on everyone else. They stay equipped and keep every stat they give." />
+                                                   Text="Hides all wings, yours and everyone else's. Stats are unchanged." />
                                             </StackPanel>
 
                                             <CheckBox x:Name="tglHideWings"

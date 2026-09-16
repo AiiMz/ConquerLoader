@@ -897,6 +897,14 @@
   },
   {
     "id": "mainFpsLimitHint",
-    "text": "El cliente dibuja tan rapido como permita tu equipo y avanza la animacion un paso por fotograma, asi que sin limite todo se mueve demasiado rapido. Deja el limite puesto salvo que tengas un motivo para quitarlo."
+    "text": "Sin limite el juego corre varias veces mas rapido. Deja el limite puesto."
+  },
+  {
+    "id": "lblHideWings",
+    "text": "Ocultar alas"
+  },
+  {
+    "id": "mainHideWingsHint",
+    "text": "Oculta todas las alas, las tuyas y las de los demas. Los stats no cambian."
   }
 ]

@@ -337,7 +337,15 @@
   },
   {
     "id": "mainFpsLimitHint",
-    "text": "The client draws as fast as your machine allows and animates a step per frame, so uncapped makes everything run fast. Leave the cap on unless you have a reason not to."
+    "text": "Uncapped runs the game several times too fast. Leave the cap on."
+  },
+  {
+    "id": "lblHideWings",
+    "text": "Hide Wings"
+  },
+  {
+    "id": "mainHideWingsHint",
+    "text": "Hides all wings, yours and everyone else's. Stats are unchanged."
   },
   {
     "id": "settingsFpsWarning",
