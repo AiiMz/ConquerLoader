@@ -43,11 +43,6 @@ namespace ConquerLoader.Forms.WPF
             e.Handled = true;
         }
 
-        private void BrandCard_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            OpenUrl("https://conquerloader.com/");
-        }
-
         private static void OpenUrl(string url)
         {
             Process.Start(url);

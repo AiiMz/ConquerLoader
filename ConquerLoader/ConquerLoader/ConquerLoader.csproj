@@ -362,7 +362,6 @@
     <Resource Include="Resources\CL_BG.png" />
     <Content Include="Resources\ConquerCipherHook.dll" />
     <None Include="Resources\ConquerLoaderLogo.ico" />
-    <Resource Include="Resources\ConquerLoaderICON.png" />
     <None Include="Resources\COServerDat.dll" />
     <None Include="Resources\en.json" />
     <None Include="Resources\es.json" />

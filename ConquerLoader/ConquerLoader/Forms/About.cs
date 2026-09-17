@@ -21,10 +21,5 @@ namespace ConquerLoader.Forms
         {
             Process.Start("https://conquerloader.com/changelog/");
         }
-
-        private void PbAbout_Click(object sender, EventArgs e)
-        {
-            Process.Start("https://conquerloader.com/");
-        }
     }
 }

@@ -183,11 +183,6 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Image Width="24"
-                               Height="24"
-                               Margin="0,0,10,0"
-                                Source="pack://application:,,,/Resources/ConquerLoaderICON.png"
-                               Stretch="Uniform" />
                         <TextBlock x:Name="txtWindowTitleBar" VerticalAlignment="Center" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Text="Server.dat Viewer" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" shell:WindowChrome.IsHitTestVisibleInChrome="True">

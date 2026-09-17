@@ -384,11 +384,6 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Image Width="24"
-                               Height="24"
-                               Margin="0,0,10,0"
-                               Source="pack://application:,,,/Resources/ConquerLoaderICON.png"
-                               Stretch="Uniform" />
                         <TextBlock VerticalAlignment="Center"
                                    FontSize="14"
                                    FontWeight="SemiBold"

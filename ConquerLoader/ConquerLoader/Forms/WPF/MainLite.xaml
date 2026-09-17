@@ -521,21 +521,8 @@
                         <StackPanel Orientation="Horizontal"
                                     VerticalAlignment="Center"
                                     PreviewMouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-                            <Border Width="32"
-                                    Height="32"
-                                    CornerRadius="15"
-                                    Background="#261014"
-                                    BorderBrush="#8893A3"
-                                    BorderThickness="1">
-                                <Image Width="24"
-                                       Height="24"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"
-                                       Source="/ConquerLoader;component/Resources/ConquerLoaderICON.png"
-                                       Stretch="Uniform" />
-                            </Border>
                             <TextBlock x:Name="txtTopBarTitle"
-                                       Margin="12,0,0,0"
+                                       Margin="0"
                                        VerticalAlignment="Center"
                                        FontSize="14"
                                        FontWeight="SemiBold"
@@ -578,24 +565,6 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <StackPanel Grid.Row="0"
-                            HorizontalAlignment="Center">
-                            <Image Width="184"
-                           Height="184"
-                           Margin="0,0,0,0"
-                           HorizontalAlignment="Center"
-                           Source="/ConquerLoader;component/Resources/ConquerLoaderICON.png"
-                           Stretch="Uniform">
-                                <Image.Effect>
-                                    <DropShadowEffect BlurRadius="42"
-                                              Direction="270"
-                                              Opacity="0.5"
-                                              ShadowDepth="16"
-                                              Color="#2D0E09" />
-                                </Image.Effect>
-                            </Image>
-                        </StackPanel>
-
                         <Grid Grid.Row="2"
                       MinHeight="458">
                             <Grid.ColumnDefinitions>
@@ -611,7 +580,7 @@
                             Style="{StaticResource ScenePanelStyle}"
                             Background="#4A0F131A"
                             BorderBrush="#D0D6E0"
-                            Padding="22,20,22,20" Margin="0,-183,0,0">
+                            Padding="22,20,22,20" Margin="0,0,0,0">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto" />
@@ -682,7 +651,7 @@
                             </Border>
 
                             <Grid Grid.Column="2"
-                          Margin="0,-18,0,0"
+                          Margin="0,0,0,0"
                           VerticalAlignment="Top" Height="502">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -784,7 +753,7 @@
                             </Grid>
 
                             <Border Grid.Column="4"
-                            Margin="0,-183,0,0"
+                            Margin="0,0,0,0"
                             VerticalAlignment="Top"
                             Style="{StaticResource ScenePanelStyle}"
                             Background="#48111617"

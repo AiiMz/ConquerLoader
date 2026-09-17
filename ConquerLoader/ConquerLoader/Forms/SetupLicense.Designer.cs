@@ -67,8 +67,7 @@
             this.tbxLicenseKey.CustomButton.Theme = MetroFramework.MetroThemeStyle.Light;
             this.tbxLicenseKey.CustomButton.UseSelectable = true;
             this.tbxLicenseKey.CustomButton.Visible = false;
-            this.tbxLicenseKey.DisplayIcon = true;
-            this.tbxLicenseKey.Icon = global::ConquerLoader.Properties.Resources.ConquerLoaderICON;
+            this.tbxLicenseKey.DisplayIcon = false;
             this.tbxLicenseKey.Lines = new string[] {
         "Your license key (Example: 2d32a164-fcd5-796b-b43f-005a78274cad)"};
             this.tbxLicenseKey.Location = new System.Drawing.Point(32, 124);

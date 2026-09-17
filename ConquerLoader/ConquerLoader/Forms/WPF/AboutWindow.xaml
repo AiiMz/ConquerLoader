@@ -167,11 +167,6 @@
                     <StackPanel Orientation="Horizontal"
                                 VerticalAlignment="Center"
                                 PreviewMouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-                        <Image Width="24"
-                               Height="24"
-                               Margin="0,0,10,0"
-                               Source="pack://application:,,,/Resources/ConquerLoaderICON.png"
-                               Stretch="Uniform" />
                         <TextBlock x:Name="txtWindowTitleBar"
                                    FontSize="14"
                                    FontWeight="SemiBold"
@@ -205,39 +200,7 @@
                           CanContentScroll="False">
                 <Border Style="{StaticResource CardStyle}">
                     <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="180" />
-                            <ColumnDefinition Width="24" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Border Grid.Column="0"
-                                Width="170"
-                                Height="170"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Top"
-                                Background="#221618"
-                                BorderBrush="#8A613A"
-                                BorderThickness="1"
-                                CornerRadius="28"
-                                Cursor="Hand"
-                                MouseLeftButtonUp="BrandCard_MouseLeftButtonUp">
-                            <StackPanel VerticalAlignment="Center">
-                                <Image Width="94"
-                                       Height="94"
-                                       HorizontalAlignment="Center"
-                                       Source="pack://application:,,,/Resources/ConquerLoaderICON.png"
-                                       Stretch="Uniform" />
-                                <TextBlock Margin="0,10,0,0"
-                                           HorizontalAlignment="Center"
-                                       MaxWidth="140"
-                                       FontSize="13"
-                                       Foreground="{StaticResource TextSecondaryBrush}"
-                                       Text="conquerloader.com"
-                                       TextAlignment="Center"
-                                       TextWrapping="Wrap" />
-                            </StackPanel>
-                        </Border>
-                        <StackPanel Grid.Column="2">
+                        <StackPanel>
                             <TextBlock x:Name="txtAboutHeading" FontSize="30" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Text="About ConquerLoader" TextWrapping="Wrap" />
                             <TextBlock x:Name="txtAboutDescription" Margin="0,10,0,0" FontSize="15" Foreground="{StaticResource TextSecondaryBrush}" Text="A lightweight launcher with plugin support and server management for Conquer Online." TextWrapping="Wrap" />
                             <TextBlock x:Name="txtAboutCreatedBy" Margin="0,24,0,0" FontSize="14" Foreground="{StaticResource TextPrimaryBrush}" Text="Created by Cristian Ocana Soler (DaRkFoxDeveloper)" TextWrapping="Wrap" />
