@@ -651,7 +651,7 @@
                             </Border>
 
                             <Grid Grid.Column="2"
-                          Margin="0,0,0,0"
+                          Margin="0,166,0,0"
                           VerticalAlignment="Top" Height="502">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
