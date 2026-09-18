@@ -5,7 +5,7 @@ It exists mainly for one reason: **the loader updates the client before it
 starts it**, so the patch step cannot be skipped. It also carries the three
 fixes below that a server addressed by DNS name needs.
 
-Upstream is otherwise unchanged. There is no rebranding and no UI
+Upstream is otherwise unchanged. Apart from the rename below there is no UI
 surgery, deliberately — every change below is additive
 or a one-line retarget, so pulling upstream fixes stays an ordinary merge:
 
@@ -34,6 +34,8 @@ and this is the repository that makes it possible — upstream is open source, s
 |---|---|
 | `CLCore/Patching/` | **New.** The whole patcher: manifest model and validation, the path guard, the compare step, the atomic installer, the HTTP client, and `ClientPatcher` on top of them |
 | `CLCore/Patching/SelfUpdate.cs` | **New.** The loader updating itself from the patch layer, so a loader bug is fixable after players have a copy — below |
+| `CLCore/Patching/LegacyLauncher.cs` | **New.** The exe is `EternalAbyss.exe` now; started under the old name it hands off to the new one, so shortcuts made before the rename keep working — below |
+| `ConquerLoader/Program.cs`, `ConquerLoader.csproj`, `Properties/AssemblyInfo.cs`, the seven WPF windows' pack URIs | **The rename.** `AssemblyName` and the file name move together or the first window throws; `RootNamespace` stays `ConquerLoader` — below |
 | `CLCore/Models/ServerConfiguration.cs` | **One field**, `PatchManifestUrl`. Null or empty — which is what every existing `config.json` has — turns patching off and the loader behaves exactly as it always did |
 | `ConquerLoader/Core.cs` | **One method**, `RunAutoPatch`, returning the same `PluginPreLaunchResult` the plugin hook already uses so both launch paths reuse the cancel-launch plumbing |
 | `ConquerLoader/Forms/Main.cs`, `Forms/WPF/MainLite.xaml.cs` | **Six lines each**, calling it immediately before `RunPreLaunchPlugins` |
@@ -42,7 +44,7 @@ and this is the repository that makes it possible — upstream is open source, s
 | `ConquerCipherHook/FpsLimiter.*` | **New.** The frame cap itself, in the hook that is already injected into the client |
 | `ConquerLoader/Forms/WPF/MainLite.xaml` + `.xaml.cs` | **Two cards** in the Options panel: Hide Wings, and the frame cap that replaced the FPS Unlock toggle |
 | `ConquerLoader/Core.cs` | **One method**, `SafeIO.DiffersFrom`, so a changed hook DLL reaches an install that already has an older one |
-| `Tests/CLCore.Tests/` | **New.** 78 tests over the path guard, the manifest validation, the compare-and-install pair, the wing rewrite and the frame cap |
+| `Tests/CLCore.Tests/` | **New.** Tests over the path guard, the manifest validation, the compare-and-install pair, the self-update naming rules, the hand-off, the wing rewrite and the frame cap |
 | every `*.csproj` | `TargetFrameworkVersion` v4.6.2 → **v4.8** |
 | `ConquerCipherHook.vcxproj` | **`UseOfMfc` Static → false**, plus an explicit `RuntimeLibrary` — below |
 | `ConquerLoader/Models/ServersDatGenerator.cs` | **One method**, `ResolveToIPv4`, so `LoginHost` may be a hostname |
@@ -122,8 +124,10 @@ wave the population would have fragmented by loader version permanently. That is
 backwards from where the risk is: the content files change weekly and cannot
 break a launch.
 
-So `ConquerLoader.exe` is now an entry in the manifest like any other, and the
-loader recognises the entry that names the file it is running from.
+So the launcher is now an entry in the manifest like any other, and the
+loader recognises the entry that names the file it is running from — by
+resolved path, never by name, which is what let the file be renamed later
+without any of this having to know.
 
 **A running executable cannot be deleted or overwritten on Windows, but it can
 be renamed.** That is the whole mechanism. `FileInstaller` deletes and then
@@ -186,6 +190,62 @@ the restarted loader received `D:\\Some Dir\\Conquer`. Doubling is right for a
 run of backslashes before a quote or at the end of a quoted argument, and wrong
 everywhere else. Nothing about rereading the method showed it; the first
 restarted process did.
+
+## The launcher is EternalAbyss.exe
+
+The exe players double-click is `EternalAbyss.exe`. It is the same build as
+before under a new name, and `ConquerLoader.exe` ships beside it — the same
+bytes published a second time — so that a shortcut made before the rename keeps
+working.
+
+**Why both names rather than a rename on disk.** The patch layer decides what a
+player has by path. Publish the loader under a new name only, and every existing
+install downloads a second 45 MB file and goes on launching the old one, which
+is then never named by the manifest again — it becomes the one piece of code
+that cannot be fixed, which is the condition the section above exists to remove.
+Renaming the running image instead is possible, and `SelfUpdate` already knows
+how, but it strands the player's shortcut: a shortcut to a missing exe is a
+support ticket that reads "the game is gone".
+
+**The exe decides what it is from the name it was started under.**
+`LegacyLauncher` is the whole of it: started as `ConquerLoader.exe` with an
+`EternalAbyss.exe` beside it, the process starts that one, passes its arguments
+along, and exits. Started as anything else, or with no sibling there, it is the
+launcher. This runs in `Program.Main` before `EnableVisualStyles` and before the
+`Application` object, so nothing flashes on screen — the player sees one window,
+the new process's.
+
+**The first run after the rename ships is served by the old name**, because the
+sibling is installed by the patch pass later in that same session. Every run
+after it hands off. That is the only ordering this needed, and it is why the
+hand-off is not allowed to care whether the sibling is *current* — only that it
+exists and is not empty. The patcher keeps it current the same way it keeps
+every other file current.
+
+**A failure here is never an error.** No sibling, an unreadable directory, a
+refused `Process.Start`: all of them mean carry on as this process, which is
+what this exe was before the rename. A launcher that will not open is worse than
+one wearing the wrong name.
+
+The guard is `ETERNALABYSS_HANDED_OFF`, deliberately not
+`CONQUERLOADER_SELFUPDATED`: a hand-off must not spend the one restart the
+self-update is allowed.
+
+### What the rename touched in the build
+
+`AssemblyName` and the file name have to move together. Setting `TargetName`
+alone produces `EternalAbyss.exe` from an assembly still called `ConquerLoader`,
+which builds cleanly and dies on the first window — the XAML compiler writes its
+generated pack URIs from the target name while the assembly identity is the old
+one, so `LoadComponent` throws `FileNotFoundException` for an assembly that does
+not exist. It was tried here, in that order, and cost a launch. So
+`AssemblyName` is `EternalAbyss` and the hand-written
+`/ConquerLoader;component/…` pack URIs in the seven WPF windows moved with it.
+
+`RootNamespace` deliberately did **not** move: it names the manifest resources
+every `.resx` and every `Properties.Resources` lookup already resolves through,
+and renaming it buys nothing a player can see. The namespaces in this fork are
+still `ConquerLoader.*`, and an upstream merge still applies cleanly to them.
 
 ## Hide Wings
 

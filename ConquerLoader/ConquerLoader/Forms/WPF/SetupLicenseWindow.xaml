@@ -22,7 +22,7 @@
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="/ConquerLoader;component/Forms/WPF/SharedTheme.xaml" />
+                <ResourceDictionary Source="/EternalAbyss;component/Forms/WPF/SharedTheme.xaml" />
             </ResourceDictionary.MergedDictionaries>
         <SolidColorBrush x:Key="PrimaryBrush" Color="#CB4129" />
         <SolidColorBrush x:Key="SurfaceBrush" Color="#120E13" />

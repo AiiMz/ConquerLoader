@@ -82,6 +82,7 @@
     <Compile Include="Patching\ClientPatcher.cs" />
     <Compile Include="Patching\ClientPaths.cs" />
     <Compile Include="Patching\FileInstaller.cs" />
+    <Compile Include="Patching\LegacyLauncher.cs" />
     <Compile Include="Patching\Manifest.cs" />
     <Compile Include="Patching\ManifestReader.cs" />
     <Compile Include="Patching\PatchPlanner.cs" />

@@ -23,7 +23,7 @@
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="/ConquerLoader;component/Forms/WPF/SharedTheme.xaml" />
+                <ResourceDictionary Source="/EternalAbyss;component/Forms/WPF/SharedTheme.xaml" />
             </ResourceDictionary.MergedDictionaries>
             <SolidColorBrush x:Key="PrimaryBrush" Color="#CB4129" />
             <SolidColorBrush x:Key="PrimaryDarkBrush" Color="#941C17" />
@@ -462,7 +462,7 @@
             BorderThickness="0"
             CornerRadius="0">
         <Grid ClipToBounds="True">
-            <Image Source="/ConquerLoader;component/Resources/CL_BG.png"
+            <Image Source="/EternalAbyss;component/Resources/CL_BG.png"
                    Stretch="UniformToFill"
                    Opacity="1"
                    IsHitTestVisible="False" />

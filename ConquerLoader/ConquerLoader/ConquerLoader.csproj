@@ -8,7 +8,21 @@
     <ProjectGuid>{AF23285A-B4CD-46B1-962D-0CD66A55482B}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <RootNamespace>ConquerLoader</RootNamespace>
-    <AssemblyName>ConquerLoader</AssemblyName>
+    <!-- EternalAbyss.exe since the rename. RootNamespace deliberately did NOT
+         move with it: it names the manifest resources every .resx and every
+         Properties.Resources lookup already resolves through, and renaming it
+         buys nothing a player can see.
+
+         THE ASSEMBLY NAME AND THE FILE NAME HAVE TO MOVE TOGETHER. Setting
+         TargetName alone produces EternalAbyss.exe from an assembly still
+         called ConquerLoader, which builds cleanly and then dies on the first
+         window: the XAML compiler writes its generated pack URIs from the
+         target name ("/EternalAbyss;component/Forms/WPF/MainLite.xaml") while
+         the assembly identity is still ConquerLoader, so LoadComponent throws
+         FileNotFoundException for an assembly that does not exist. That was
+         tried here and cost a launch. The hand-written pack URIs in the seven
+         WPF windows name the assembly too and were rewritten with this. -->
+    <AssemblyName>EternalAbyss</AssemblyName>
     <!-- v4.8, not upstream's v4.6.2. The 4.6.2 targeting pack is not installed
          by Visual Studio 2022 by default and is not on the GitHub Windows runner
          images, so a v4.6.2 build needs a developer pack nobody thinks to

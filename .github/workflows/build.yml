@@ -1,8 +1,12 @@
 # Builds the loader and runs the tests for CLCore\Patching.
 #
-# This fork's whole reason to exist is that the shipped ConquerLoader.exe
-# updates the client before starting it, and the exe players run should come out
-# of a workflow rather than off whichever laptop built it last. See FORK.md.
+# This fork's whole reason to exist is that the shipped launcher updates the
+# client before starting it, and the exe players run should come out of a
+# workflow rather than off whichever laptop built it last. See FORK.md.
+#
+# That exe is EternalAbyss.exe since the rename; ConquerLoader.exe is the same
+# build published a second time under the old name, so that shortcuts made
+# before the rename still work. Both come from this one artifact.
 #
 # ConquerLoader.csproj is what ships. ConquerCipherHook.vcxproj is built too but
 # nothing is shipped from it here: the loader carries that hook as an embedded
@@ -95,16 +99,26 @@ jobs:
       # Costura packs every dependency into the one file. A build that produced
       # a small exe would be one whose weaving silently did not run, and it would
       # fail on a player's machine rather than here.
+      #
+      # THE NAME IS PART OF THE CHECK. The file is EternalAbyss.exe because the
+      # csproj sets TargetName while the assembly stays ConquerLoader - a split
+      # that exists to keep the WPF pack URIs working, and one that a later edit
+      # to AssemblyName would silently undo. The old name is asserted absent
+      # rather than merely not looked for: a build that produced ConquerLoader
+      # .exe would be published as the loader under a path nothing serves.
       - name: Check the exe is packed
         shell: pwsh
         run: |
-          $exe = "ConquerLoader\Release\ConquerLoader.exe"
-          if (-not (Test-Path $exe)) { throw "No ConquerLoader.exe was produced." }
+          $exe = "ConquerLoader\Release\EternalAbyss.exe"
+          if (-not (Test-Path $exe)) { throw "No EternalAbyss.exe was produced." }
+          if (Test-Path "ConquerLoader\Release\ConquerLoader.exe") {
+            throw "The build produced ConquerLoader.exe - TargetName is not taking effect."
+          }
           $mb = [math]::Round((Get-Item $exe).Length / 1MB, 1)
-          if ($mb -lt 30) { throw "ConquerLoader.exe is only $mb MB - Costura did not pack it." }
-          Write-Host "ConquerLoader.exe OK: $mb MB"
+          if ($mb -lt 30) { throw "EternalAbyss.exe is only $mb MB - Costura did not pack it." }
+          Write-Host "EternalAbyss.exe OK: $mb MB"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ConquerLoader-${{ github.sha }}
-          path: ConquerLoader/Release/ConquerLoader.exe
+          name: EternalAbyss-loader-${{ github.sha }}
+          path: ConquerLoader/Release/EternalAbyss.exe

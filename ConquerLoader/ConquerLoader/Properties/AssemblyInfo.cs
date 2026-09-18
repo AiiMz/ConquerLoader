@@ -6,12 +6,19 @@ using System.Runtime.InteropServices;
 // La información general de un ensamblado se controla mediante el siguiente 
 // conjunto de atributos. Cambie estos valores de atributo para modificar la información
 // asociada con un ensamblado.
-[assembly: AssemblyTitle("ConquerLoader")]
-[assembly: AssemblyDescription("")]
+// These are what Windows shows in the exe's Properties > Details pane, so they
+// follow the file's name rather than the assembly's: the file is EternalAbyss
+// .exe (see TargetName in the csproj) and a player checking what they just
+// downloaded should be told the same thing twice. The upstream author stays
+// credited in the copyright line, which is where a derivative belongs - this
+// fork is ConquerLoader with our patcher and our launch path in it, not a
+// clean-room launcher.
+[assembly: AssemblyTitle("EternalAbyss")]
+[assembly: AssemblyDescription("EternalAbyss game launcher")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("DaRkFoxDeveloper")]
-[assembly: AssemblyProduct("ConquerLoader")]
-[assembly: AssemblyCopyright("Copyright © DaRkFoxDeveloper 2020")]
+[assembly: AssemblyCompany("EternalAbyss")]
+[assembly: AssemblyProduct("EternalAbyss")]
+[assembly: AssemblyCopyright("Copyright © EternalAbyss. Based on ConquerLoader by DaRkFoxDeveloper.")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
