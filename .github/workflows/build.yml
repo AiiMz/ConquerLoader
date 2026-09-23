@@ -122,3 +122,80 @@ jobs:
         with:
           name: EternalAbyss-loader-${{ github.sha }}
           path: ConquerLoader/Release/EternalAbyss.exe
+          retention-days: 14
+
+  # Keep the artifact store under the free tier's 500 MB, the same way
+  # EternalAbyssCo/build.yml's prune-artifacts job does - see the comment
+  # there for the full reasoning. The short version: retention-days is a time
+  # limit, and a busy week uploads this ~40 MB exe often enough that count is
+  # the bound that actually binds. Every push at ~40 MB means the default
+  # 90-day retention alone would sit well past 500 MB before it ever expired
+  # anything; measured on 2026-09-22 this repo already held 9 live artifacts /
+  # 370 MB, split across the current EternalAbyss-loader-<sha> name and the
+  # ConquerLoader-<sha> name artifacts kept from before the exe was renamed.
+  #
+  # Family = the name minus a trailing -<sha>, so the legacy ConquerLoader
+  # family prunes down and away on its own without a separate code path, and
+  # any future rename does the same.
+  #
+  # push only: a pull_request run from a fork gets a read-only token and could
+  # not delete anything, and there is no point failing a job to say so.
+  prune-artifacts:
+    needs: build
+    if: ${{ !cancelled() && github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+
+    permissions:
+      actions: write
+
+    env:
+      KEEP_DEFAULT: 5
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Prune old build artifacts
+        run: |
+          set -euo pipefail
+
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.expired == false)
+                  | [.created_at, .id, .name, .size_in_bytes] | @tsv' > all.tsv
+
+          echo "Before: $(wc -l < all.tsv) live artifact(s), $(awk -F'\t' '{s+=$4} END {printf "%d", s/1048576}' all.tsv) MB"
+
+          # created_at first so a plain lexicographic sort is a chronological one
+          # - the API returns ISO 8601. Written longhand instead of an interval
+          # regex because /usr/bin/awk on the runner is mawk.
+          awk -F'\t' -v OFS='\t' '
+            {
+              fam = $3
+              n = split(fam, p, "-")
+              if (n > 1 && length(p[n]) >= 7 && p[n] ~ /^[0-9a-f]+$/) sub(/-[^-]+$/, "", fam)
+              print fam, $1, $2, $3, $4
+            }' all.tsv | sort -t$'\t' -k1,1 -k2,2r > sorted.tsv
+
+          awk -F'\t' -v OFS='\t' -v fallback="$KEEP_DEFAULT" '
+            {
+              seen[$1]++
+              if (seen[$1] > fallback) print $3, $4, $5
+            }' sorted.tsv > doomed.tsv
+
+          if [ ! -s doomed.tsv ]; then
+            echo "Nothing to prune."
+            exit 0
+          fi
+
+          # Tolerate a failed delete. The ways one fails are a race with the
+          # retention sweep or with another run of this job, and both leave the
+          # store in the state this job was trying to reach anyway.
+          freed=0
+          while IFS=$'\t' read -r id name bytes; do
+            if gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$id" --silent; then
+              echo "deleted  $name  ($((bytes / 1048576)) MB)"
+              freed=$((freed + bytes))
+            else
+              echo "::warning::Could not delete artifact $id ($name); it may already be gone."
+            fi
+          done < doomed.tsv
+
+          echo "Freed $((freed / 1048576)) MB across $(wc -l < doomed.tsv) artifact(s)."
