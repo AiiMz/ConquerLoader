@@ -134,10 +134,9 @@ jobs:
   # 370 MB, split across the current EternalAbyss-loader-<sha> name and the
   # ConquerLoader-<sha> name artifacts kept from before the exe was renamed.
   #
-  # Family = the name minus a trailing -<sha>, so the legacy ConquerLoader
-  # family prunes down and away on its own without a separate code path, and
-  # any future rename does the same.
-  #
+  # Retention is global across artifact names, so the legacy ConquerLoader-<sha>
+  # artifacts age out after the executable rename instead of keeping a second
+  # set of artifacts.
   # push only: a pull_request run from a fork gets a read-only token and could
   # not delete anything, and there is no point failing a job to say so.
   prune-artifacts:
@@ -163,23 +162,12 @@ jobs:
 
           echo "Before: $(wc -l < all.tsv) live artifact(s), $(awk -F'\t' '{s+=$4} END {printf "%d", s/1048576}' all.tsv) MB"
 
-          # created_at first so a plain lexicographic sort is a chronological one
-          # - the API returns ISO 8601. Written longhand instead of an interval
-          # regex because /usr/bin/awk on the runner is mawk.
-          awk -F'\t' -v OFS='\t' '
-            {
-              fam = $3
-              n = split(fam, p, "-")
-              if (n > 1 && length(p[n]) >= 7 && p[n] ~ /^[0-9a-f]+$/) sub(/-[^-]+$/, "", fam)
-              print fam, $1, $2, $3, $4
-            }' all.tsv | sort -t$'\t' -k1,1 -k2,2r > sorted.tsv
+          # API timestamps are ISO 8601, so reverse lexicographic sort is newest first.
+          sort -t$'\t' -k1,1r -k2,2nr all.tsv > sorted.tsv
 
-          awk -F'\t' -v OFS='\t' -v fallback="$KEEP_DEFAULT" '
-            {
-              seen[$1]++
-              if (seen[$1] > fallback) print $3, $4, $5
-            }' sorted.tsv > doomed.tsv
-
+          awk -F'\t' -v OFS='\t' -v keep="$KEEP_DEFAULT" '
+            NR > keep { print $2, $3, $4 }
+          ' sorted.tsv > doomed.tsv
           if [ ! -s doomed.tsv ]; then
             echo "Nothing to prune."
             exit 0
