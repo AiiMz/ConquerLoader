@@ -9,24 +9,42 @@ static BYTE fHeader1[] = { 0x55, 0x8B, 0xEC, 0x81, 0xEC };
 // push ebp
 // mov ebp,esp
 static BYTE fHeader2[] = { 0x8B, 0xFF, 0x55, 0x8B, 0xEC };
+// jmp dword ptr [abs32]
+// How Windows 11's 32-bit shell32 exports ShellExecuteA: a forwarding stub, not a
+// function body. The operand is an absolute address, so the whole 6-byte
+// instruction can be copied into the trampoline unchanged.
+static BYTE fHeader3[] = { 0xFF, 0x25 };
 
 int IsKnownHookHeader32(LPVOID Address, int Default)
 {
 	DWORD dwOld;
-	VirtualProtect(Address, 5, PAGE_EXECUTE_READWRITE, &dwOld);
+	VirtualProtect(Address, 6, PAGE_EXECUTE_READWRITE, &dwOld);
 	VirtualProtect(fHeader1, 5, PAGE_EXECUTE_READWRITE, &dwOld);
 	VirtualProtect(fHeader2, 5, PAGE_EXECUTE_READWRITE, &dwOld);
 	if (memcmp(Address, &fHeader1[0], sizeof(fHeader1)) == 0)
 		return 11;
 	if (memcmp(Address, &fHeader2[0], sizeof(fHeader2)) == 0)
 		return 5;
+	if (memcmp(Address, &fHeader3[0], sizeof(fHeader3)) == 0)
+		return 6;
 	return Default;
 }
 void CreateHook32(LPVOID Address, LPVOID Target, HOOK_STUB* Stub)
 {
 	DWORD dwOld;
 	Stub->Size = IsKnownHookHeader32(Address, Stub->Size);
-	
+
+	// An unrecognised prologue with no size from the caller used to build a
+	// trampoline that copied 0 bytes and jumped straight back into the patched
+	// entry point: the first call recursed until the stack overflowed and the
+	// client vanished without a crash report. Leave such a function unhooked,
+	// and point the stub at the original so a pass-through still works.
+	if (Stub->Size < 5)
+	{
+		Stub->Address = Address;
+		return;
+	}
+
 	PBYTE ptr = new BYTE[Stub->Size + 5];
 	VirtualProtect(ptr, Stub->Size + 5, PAGE_EXECUTE_READWRITE, &dwOld);
 	memcpy(ptr, Address, Stub->Size);
