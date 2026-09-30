@@ -1,9 +1,12 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.29920.165
+# Visual Studio Version 18
+VisualStudioVersion = 18.10.12224.181 stable
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConquerLoader", "ConquerLoader\ConquerLoader.csproj", "{AF23285A-B4CD-46B1-962D-0CD66A55482B}"
+  ProjectSection(ProjectDependencies) = postProject
+    {BD6C1AFA-00E1-4CD6-A67B-D8DE59127450} = {BD6C1AFA-00E1-4CD6-A67B-D8DE59127450}
+  EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CLHook", "..\ConquerHook\CLHook.vcxproj", "{01358812-493C-4A24-8630-F71DF28D47D8}"
 EndProject
@@ -15,7 +18,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLCore", "CLCore\CLCore.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CLServer", "CLServer\CLServer.csproj", "{DC6DE0A1-3AA6-4AEC-9320-73B2F2ADF342}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CLHook", "..\ConquerCipherHook\ConquerCipherHook.vcxproj", "{BD6C1AFA-00E1-4CD6-A67B-D8DE59127450}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ConquerCipherHook", "..\ConquerCipherHook\ConquerCipherHook.vcxproj", "{BD6C1AFA-00E1-4CD6-A67B-D8DE59127450}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -34,9 +37,11 @@ Global
 		{AF23285A-B4CD-46B1-962D-0CD66A55482B}.Release|x86.ActiveCfg = Release|Any CPU
 		{AF23285A-B4CD-46B1-962D-0CD66A55482B}.Release|x86.Build.0 = Release|Any CPU
 		{01358812-493C-4A24-8630-F71DF28D47D8}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{01358812-493C-4A24-8630-F71DF28D47D8}.Debug|Any CPU.Build.0 = Debug|Win32
 		{01358812-493C-4A24-8630-F71DF28D47D8}.Debug|x86.ActiveCfg = Debug|Win32
 		{01358812-493C-4A24-8630-F71DF28D47D8}.Debug|x86.Build.0 = Debug|Win32
 		{01358812-493C-4A24-8630-F71DF28D47D8}.Release|Any CPU.ActiveCfg = Release|Win32
+		{01358812-493C-4A24-8630-F71DF28D47D8}.Release|Any CPU.Build.0 = Release|Win32
 		{01358812-493C-4A24-8630-F71DF28D47D8}.Release|x86.ActiveCfg = Release|Win32
 		{01358812-493C-4A24-8630-F71DF28D47D8}.Release|x86.Build.0 = Release|Win32
 		{2828D538-96AF-45EC-90FD-22555B20381B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
@@ -72,9 +77,11 @@ Global
 		{DC6DE0A1-3AA6-4AEC-9320-73B2F2ADF342}.Release|x86.ActiveCfg = Release|Any CPU
 		{DC6DE0A1-3AA6-4AEC-9320-73B2F2ADF342}.Release|x86.Build.0 = Release|Any CPU
 		{BD6C1AFA-00E1-4CD6-A67B-D8DE59127450}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{BD6C1AFA-00E1-4CD6-A67B-D8DE59127450}.Debug|Any CPU.Build.0 = Debug|Win32
 		{BD6C1AFA-00E1-4CD6-A67B-D8DE59127450}.Debug|x86.ActiveCfg = Debug|Win32
 		{BD6C1AFA-00E1-4CD6-A67B-D8DE59127450}.Debug|x86.Build.0 = Debug|Win32
 		{BD6C1AFA-00E1-4CD6-A67B-D8DE59127450}.Release|Any CPU.ActiveCfg = Release|Win32
+		{BD6C1AFA-00E1-4CD6-A67B-D8DE59127450}.Release|Any CPU.Build.0 = Release|Win32
 		{BD6C1AFA-00E1-4CD6-A67B-D8DE59127450}.Release|x86.ActiveCfg = Release|Win32
 		{BD6C1AFA-00E1-4CD6-A67B-D8DE59127450}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection

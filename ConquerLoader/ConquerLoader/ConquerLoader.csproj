@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="..\packages\Costura.Fody.6.0.0\build\Costura.Fody.props" Condition="Exists('..\packages\Costura.Fody.6.0.0\build\Costura.Fody.props')" />
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
@@ -421,4 +421,16 @@
   </Target>
   <Import Project="..\packages\Costura.Fody.6.0.0\build\Costura.Fody.targets" Condition="Exists('..\packages\Costura.Fody.6.0.0\build\Costura.Fody.targets')" />
   <Import Project="..\packages\Fody.6.9.3\build\Fody.targets" Condition="Exists('..\packages\Fody.6.9.3\build\Fody.targets')" />
-</Project>
+  <PropertyGroup>
+    <ClientInstallDirectory Condition="'$(ClientInstallDirectory)' == ''">$(MSBuildProjectDirectory)\..\..\..\6300</ClientInstallDirectory>
+  </PropertyGroup>
+  <Target Name="CopyBuiltLoaderToClientInstall" AfterTargets="Build" Condition="Exists('$(ClientInstallDirectory)')">
+    <Copy SourceFiles="$(TargetPath)" DestinationFiles="$(ClientInstallDirectory)\EternalAbyss.exe" />
+    <Message Importance="High" Text="Copied $(TargetPath) to $(ClientInstallDirectory)\EternalAbyss.exe" />
+  </Target>  <PropertyGroup>
+    <ClientInstallDirectory Condition="'$(ClientInstallDirectory)' == ''">$(MSBuildProjectDirectory)\..\..\..\6300</ClientInstallDirectory>
+  </PropertyGroup>
+  <Target Name="CopyBuiltLoaderToClientInstall" AfterTargets="Build" Condition="Exists('$(ClientInstallDirectory)')">
+    <Copy SourceFiles="$(TargetPath)" DestinationFiles="$(ClientInstallDirectory)\EternalAbyss.exe" />
+    <Message Importance="High" Text="Copied $(TargetPath) to $(ClientInstallDirectory)\EternalAbyss.exe" />
+  </Target></Project>

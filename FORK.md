@@ -486,34 +486,14 @@ launch.
 
 ## Building
 
-```
-msbuild ConquerLoader\ConquerLoader\ConquerLoader.csproj -t:Restore -p:RestorePackagesConfig=true -p:SolutionDir=<repo>\ConquerLoader\
-msbuild ConquerLoader\ConquerLoader\ConquerLoader.csproj -t:Build -p:Configuration=Release -p:SolutionDir=<repo>\ConquerLoader\
-dotnet test ConquerLoader\Tests\CLCore.Tests\CLCore.Tests.csproj
-```
+In Visual Studio, open ConquerLoader\ConquerLoader.sln and use **Build Solution**. The solution maps Debug|Any CPU to Win32 for both native projects and builds them. ConquerLoader depends on ConquerCipherHook, so the hook builds first; its post-build target copies the resulting DLL to ConquerLoader\Resources\ConquerCipherHook.dll. The C# build then embeds that file in EternalAbyss.exe. The completed loader is copied to the parent repository 6300\EternalAbyss.exe when that client directory exists.
 
-The hook that carries the frame cap is a separate, 32-bit, C++ build:
+Both native projects target the installed Visual Studio 18 v145 toolset in Debug and Release. The hook is 32-bit and uses the static CRT; see “The hook does not use MFC” above for why those settings are explicit.
 
-```
-msbuild ConquerCipherHook\ConquerCipherHook.vcxproj -t:Restore;Build -p:RestorePackagesConfig=true -p:Configuration=Release -p:Platform=Win32 -p:SolutionDir=<repo>\ConquerLoader```
+Command-line solution build, from the ConquerLoader repository root:
 
-**It is not a build input for the loader.** The loader embeds
-`ConquerLoader/Resources/ConquerCipherHook.dll` as a resource, so changing the
-hook means building it and committing the new DLL over that one. CI builds the
-vcxproj to prove the source still compiles, and nothing more - a byte-compare
-against the committed DLL would only prove which toolset built it.
+`
+msbuild ConquerLoader\ConquerLoader.sln -restore -t:Build -p:Configuration=Release -p:Platform="Any CPU" -v:minimal -nologo
+`
 
-Output is `ConquerLoader/Release/ConquerLoader.exe`, ~47 MB — Costura.Fody packs
-every dependency, and the two `VC_redist` installers upstream embeds, into the
-one file.
-
-**The retarget to v4.8 is why this builds at all on a normal machine.** The
-4.6.2 targeting pack is not installed by Visual Studio 2022 by default and is
-not on the GitHub Windows runner images, so upstream's `v4.6.2` fails with
-MSB3644 until somebody finds and installs a developer pack. 4.8 ships in-box on
-Windows 10 1903 and later, which is the whole population that can run this
-client anyway.
-
-`Tests/CLCore.Tests` is **not** in `ConquerLoader.sln`, on purpose: that solution
-is built by MSBuild-for-.NET-Framework and carries two C++ projects, and the
-test project is SDK-style and run by `dotnet test`.
+ConquerLoader/Release/EternalAbyss.exe is also the project output. Building the .csproj by itself does not build the native hook first; use the solution so the embedded resource is refreshed from the native build. dotnet test ConquerLoader\Tests\CLCore.Tests\CLCore.Tests.csproj runs the test project, which is not included in the Visual Studio solution.
