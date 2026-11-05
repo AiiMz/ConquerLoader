@@ -37,6 +37,11 @@ namespace CLCore.Patching
         public static void Install(string clientRoot, ManifestFile entry, Stream content)
         {
             string destination = ClientPaths.Resolve(clientRoot, entry.Path);
+
+            // Whatever a previous update moved aside for this path is normally free
+            // by now; clear it before possibly needing the name again.
+            SweepMovedAside(destination);
+
             string partial = Stage(clientRoot, entry, content);
 
             try
@@ -47,15 +52,94 @@ namespace CLCore.Patching
                 // running yet (this is a PRE-launch step) and because the
                 // alternative, copying over the original in place, is the
                 // half-written file this whole class exists to avoid.
-                if (File.Exists(destination))
-                    File.Delete(destination);
+                string movedAside = null;
 
-                File.Move(partial, destination);
+                if (File.Exists(destination))
+                {
+                    try
+                    {
+                        File.Delete(destination);
+                    }
+                    catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+                    {
+                        // IN USE IS NOT BROKEN. A DLL or exe mapped by a running
+                        // process cannot be deleted ("access denied") but CAN be
+                        // renamed - the same property SelfUpdate relies on. The
+                        // routine causes are a second client already running
+                        // (Conquer.exe, the injected GarmentMotionHook.dll) and a
+                        // plugin the loader itself has loaded. The process holding
+                        // the old bytes keeps them; the next start gets the new
+                        // file, and the moved-aside one is swept later.
+                        movedAside = ChooseMovedAsideName(destination);
+                        File.Move(destination, movedAside);
+                    }
+                }
+
+                try
+                {
+                    File.Move(partial, destination);
+                }
+                catch (Exception)
+                {
+                    // Put the original back rather than leave nothing at its name.
+                    if (movedAside != null)
+                    {
+                        try { File.Move(movedAside, destination); }
+                        catch (IOException) { }
+                        catch (UnauthorizedAccessException) { }
+                    }
+
+                    throw;
+                }
             }
             finally
             {
                 Discard(partial);
             }
+        }
+
+        /// <summary>
+        /// Suffix for a file moved aside because it was in use. Ends in ".old" so
+        /// ManifestBuilder.IsBackup and New-ClientArchive.ps1 already exclude it,
+        /// and carries ".eapatch" so a sweep can never take a player's own
+        /// "Conquer.exe.old" backup for one of ours.
+        /// </summary>
+        public const string MovedAsideSuffix = ".eapatch.old";
+
+        /// <summary>A free name for moving <paramref name="destination"/> aside.</summary>
+        internal static string ChooseMovedAsideName(string destination)
+        {
+            string plain = destination + MovedAsideSuffix;
+            if (!File.Exists(plain)) return plain;
+
+            for (int n = 2; n < 100; n++)
+            {
+                string candidate = destination + "." + n + MovedAsideSuffix;
+                if (!File.Exists(candidate)) return candidate;
+            }
+
+            throw new IOException(
+                "Could not find a free name to move " + Path.GetFileName(destination) + " aside; it is in use and "
+                + Path.GetFileName(plain) + " and 98 numbered variants all exist.");
+        }
+
+        /// <summary>
+        /// Best-effort removal of files earlier updates moved aside for
+        /// <paramref name="destination"/>. One still in use stays for next time.
+        /// </summary>
+        public static void SweepMovedAside(string destination)
+        {
+            if (string.IsNullOrEmpty(destination)) return;
+
+            // Numbered names are only ever created while the plain one exists, so
+            // the common case - nothing moved aside - costs one existence check
+            // per file rather than ninety-nine.
+            string plain = destination + MovedAsideSuffix;
+            if (!File.Exists(plain)) return;
+
+            Discard(plain);
+            for (int n = 2; n < 100; n++)
+                Discard(destination + "." + n + MovedAsideSuffix);
         }
 
         /// <summary>

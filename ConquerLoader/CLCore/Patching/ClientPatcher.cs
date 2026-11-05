@@ -37,8 +37,17 @@ namespace CLCore.Patching
         /// </summary>
         public bool RelaunchRequired;
 
-        /// <summary>Where the replacement loader now is. Set with <see cref="RelaunchRequired"/>.</summary>
+        /// <summary>Where the replacement loader now is. Set with <see cref="RelaunchRequired"/> or <see cref="PluginReloadRequired"/>.</summary>
         public string RelaunchImagePath;
+
+        /// <summary>
+        /// The patch replaced a plugin DLL, and the plugins this process loaded
+        /// when its window opened are the old ones. The caller must restart the
+        /// loader at <see cref="RelaunchImagePath"/> instead of launching the
+        /// game, so the client never starts with plugins that do not match it.
+        /// Only set on a run where every file was patched successfully.
+        /// </summary>
+        public bool PluginReloadRequired;
     }
 
     /// <summary>
@@ -275,6 +284,7 @@ namespace CLCore.Patching
                     int total = downloads.Count;
                     int done = 0;
                     List<string> failures = new List<string>();
+                    List<string> pluginsWritten = new List<string>();
 
                     write("Updating " + total + " file(s), " + Megabytes(bytesToDownload) + "...");
 
@@ -286,12 +296,17 @@ namespace CLCore.Patching
                         {
                             server.Download(file.Entry, clientRoot);
                             outcome.ChangedAnything = true;
+                            if (IsPluginAssembly(file.Entry.Path)) pluginsWritten.Add(file.Entry.Path);
                             write("  " + Describe(file.Reason) + " " + file.Entry.Path);
                         }
-                        catch (Exception ex) when (ex is IOException || ex is HttpRequestException)
+                        catch (Exception ex) when (ex is IOException || ex is HttpRequestException || ex is UnauthorizedAccessException)
                         {
                             // Named and kept, then carried on. One unreachable
                             // file should not stop the rest from being repaired.
+                            // UnauthorizedAccessException is here because "access
+                            // denied" on one file used to escape to the outer
+                            // catch, abandon every file after it, and tell the
+                            // player only "stopped part-way through".
                             failures.Add(file.Entry.Path);
                             write("  FAILED " + file.Entry.Path + ": " + ex.Message);
                         }
@@ -319,6 +334,10 @@ namespace CLCore.Patching
 
                     outcome.Summary = "Client updated to " + manifest.Version + " (" + total + " file(s)).";
                     write(outcome.Summary);
+
+                    if (pluginsWritten.Count > 0)
+                        RequirePluginReload(outcome, pluginsWritten, runningImagePath, write);
+
                     return outcome;
                 }
             }
@@ -346,6 +365,90 @@ namespace CLCore.Patching
                 }
 
                 return outcome;
+            }
+        }
+
+        /// <summary>
+        /// Set on a loader restarted to reload its plugins, and what bounds that
+        /// restart to one hop. Separate from <see cref="SelfUpdate.GuardVariable"/>
+        /// so a release changing both the loader and a plugin restarts once for
+        /// each, rather than having the second restart mistaken for a loop.
+        /// </summary>
+        public const string PluginReloadGuardVariable = "CONQUERLOADER_PLUGINSRELOADED";
+
+        /// <summary>
+        /// Whether <paramref name="manifestPath"/> is an assembly the loader loads
+        /// as a plugin: any .dll under Plugins\, at any depth, matching what
+        /// PluginLoader.LoadPlugins scans.
+        /// </summary>
+        public static bool IsPluginAssembly(string manifestPath)
+        {
+            if (string.IsNullOrEmpty(manifestPath)) return false;
+
+            string path = manifestPath.Replace('\\', '/').TrimStart('/');
+            string prefix = Constants.PluginsFolderName + "/";
+
+            return path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+                && path.EndsWith(".dll", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Turns "plugins were replaced" into the instruction the caller acts on.
+        ///
+        /// NEVER "LAUNCH ANYWAY". The plugins in memory were loaded when the
+        /// window opened, from the files this run has just replaced; a client
+        /// started now gets hooks that do not match the data beside it. So the
+        /// answer is a restart, and where a restart is not possible - no known
+        /// image to start, or this process IS the restart and plugins changed
+        /// again - it is a refusal that tells the player to start it themselves.
+        /// </summary>
+        private static void RequirePluginReload(PatchOutcome outcome, List<string> pluginsWritten, string runningImagePath, Action<string> write)
+        {
+            write("Plugin(s) updated: " + string.Join(", ", pluginsWritten.ToArray())
+                + ". The loaded copies are stale; the loader has to restart before the game can start.");
+
+            if (PluginReloadGuardIsSet())
+            {
+                // Already restarted once for this and the plugins changed AGAIN.
+                // Restarting a second time is how a bad publish becomes a loop.
+                outcome.CanLaunch = false;
+                outcome.Summary = "Plugins changed again after the loader restarted to reload them; not restarting twice.";
+                outcome.Message =
+                    "The launcher's plugins were updated, but it could not reload them by itself."
+                    + Environment.NewLine + Environment.NewLine
+                    + "Close the launcher and start it again.";
+                write(outcome.Summary);
+                return;
+            }
+
+            if (string.IsNullOrEmpty(runningImagePath))
+            {
+                outcome.CanLaunch = false;
+                outcome.Summary = "Plugins were updated and the loader cannot restart itself (running image unknown).";
+                outcome.Message =
+                    "The launcher's plugins were updated and it needs to restart."
+                    + Environment.NewLine + Environment.NewLine
+                    + "Close the launcher and start it again.";
+                write(outcome.Summary);
+                return;
+            }
+
+            outcome.PluginReloadRequired = true;
+            outcome.RelaunchImagePath = runningImagePath;
+            outcome.Summary += " Restarting the loader to reload its plugins.";
+        }
+
+        /// <summary>True on a process already restarted once to reload plugins.</summary>
+        public static bool PluginReloadGuardIsSet()
+        {
+            try
+            {
+                return !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(PluginReloadGuardVariable));
+            }
+            catch (Exception)
+            {
+                // A denied environment block is not a reason to risk a loop.
+                return true;
             }
         }
 

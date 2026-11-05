@@ -26,7 +26,8 @@ namespace CLCore.Tests.Patching
 
         public void Dispose()
         {
-            try { Directory.Delete(_root, true); } catch (IOException) { }
+            // A DLL the locked-file test loaded stays mapped until the test host exits.
+            try { Directory.Delete(_root, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
         }
 
         private static byte[] Bytes(string s)
@@ -158,6 +159,85 @@ namespace CLCore.Tests.Patching
             Assert.True(File.Exists(PathOf(entry.Path)));
             Assert.Equal(0, new FileInfo(PathOf(entry.Path)).Length);
         }
+
+        #region A destination that is in use
+
+        [Fact]
+        public void Replaces_a_dll_that_is_loaded_by_a_running_process()
+        {
+            // The GarmentMotionPlugin.dll report: the loader had LoadFile'd the
+            // plugin, File.Delete on it was "access denied", and the whole patch
+            // stopped. A mapped image cannot be deleted but can be renamed, so the
+            // install must move it aside and still put the new bytes in place.
+            string plugin = PathOf("Plugins/Locked.dll");
+            Directory.CreateDirectory(Path.GetDirectoryName(plugin));
+            File.Copy(typeof(FileInstallerTests).Assembly.Location, plugin);
+            System.Reflection.Assembly.LoadFile(plugin);   // maps it for the life of this process
+
+            Assert.ThrowsAny<Exception>(() => File.Delete(plugin));   // the original failure, still real
+
+            byte[] updated = Bytes("the new plugin");
+            ManifestFile entry = EntryFor("Plugins/Locked.dll", updated);
+
+            FileInstaller.Install(_root, entry, new MemoryStream(updated));
+
+            Assert.Equal(updated, File.ReadAllBytes(plugin));
+            Assert.True(File.Exists(plugin + FileInstaller.MovedAsideSuffix));
+        }
+
+        [Fact]
+        public void Replaces_a_read_only_file()
+        {
+            // The other route to UnauthorizedAccessException from File.Delete.
+            byte[] updated = Bytes("new");
+            ManifestFile entry = EntryFor("ini/ro.dat", updated);
+            Directory.CreateDirectory(Path.GetDirectoryName(PathOf(entry.Path)));
+            File.WriteAllBytes(PathOf(entry.Path), Bytes("old"));
+            File.SetAttributes(PathOf(entry.Path), FileAttributes.ReadOnly);
+
+            FileInstaller.Install(_root, entry, new MemoryStream(updated));
+
+            Assert.Equal(updated, File.ReadAllBytes(PathOf(entry.Path)));
+            string aside = PathOf(entry.Path) + FileInstaller.MovedAsideSuffix;
+            if (File.Exists(aside)) File.SetAttributes(aside, FileAttributes.Normal);
+        }
+
+        [Fact]
+        public void A_later_install_sweeps_what_an_earlier_one_moved_aside()
+        {
+            byte[] content = Bytes("v3");
+            ManifestFile entry = EntryFor("ini/a.dat", content);
+            Directory.CreateDirectory(Path.GetDirectoryName(PathOf(entry.Path)));
+            File.WriteAllBytes(PathOf(entry.Path), Bytes("v2"));
+            File.WriteAllBytes(PathOf(entry.Path) + FileInstaller.MovedAsideSuffix, Bytes("v1"));
+            File.WriteAllBytes(PathOf(entry.Path) + ".2" + FileInstaller.MovedAsideSuffix, Bytes("v0"));
+
+            FileInstaller.Install(_root, entry, new MemoryStream(content));
+
+            Assert.False(File.Exists(PathOf(entry.Path) + FileInstaller.MovedAsideSuffix));
+            Assert.False(File.Exists(PathOf(entry.Path) + ".2" + FileInstaller.MovedAsideSuffix));
+        }
+
+        [Fact]
+        public void The_sweep_leaves_a_players_own_old_backup_alone()
+        {
+            byte[] content = Bytes("new exe");
+            ManifestFile entry = EntryFor("Conquer.exe", content);
+            File.WriteAllBytes(PathOf("Conquer.exe"), Bytes("old exe"));
+            File.WriteAllBytes(PathOf("Conquer.exe.old"), Bytes("their backup"));
+
+            FileInstaller.Install(_root, entry, new MemoryStream(content));
+
+            Assert.Equal(Bytes("their backup"), File.ReadAllBytes(PathOf("Conquer.exe.old")));
+        }
+
+        [Fact]
+        public void The_moved_aside_name_ends_in_old_so_the_manifest_and_archive_exclude_it()
+        {
+            Assert.EndsWith(".old", FileInstaller.MovedAsideSuffix, StringComparison.Ordinal);
+        }
+
+        #endregion
 
         #region Stage - the half SelfUpdate uses
 

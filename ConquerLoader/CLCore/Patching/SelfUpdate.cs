@@ -381,6 +381,17 @@ namespace CLCore.Patching
         /// </summary>
         public static void Relaunch(string imagePath, IEnumerable<string> arguments, Action<string> log)
         {
+            Relaunch(imagePath, arguments, log, GuardVariable);
+        }
+
+        /// <summary>
+        /// As above, setting <paramref name="guardVariable"/> instead. The plugin
+        /// reload uses its own guard so that it does not spend the one restart a
+        /// loader self-update is allowed, and vice versa: a release that changes
+        /// both legitimately restarts twice.
+        /// </summary>
+        public static void Relaunch(string imagePath, IEnumerable<string> arguments, Action<string> log, string guardVariable)
+        {
             ProcessStartInfo start = new ProcessStartInfo
             {
                 FileName = imagePath,
@@ -389,7 +400,7 @@ namespace CLCore.Patching
                 Arguments = QuoteArguments(arguments),
             };
 
-            start.EnvironmentVariables[GuardVariable] = "1";
+            start.EnvironmentVariables[guardVariable ?? GuardVariable] = "1";
 
             if (log != null) log("Restarting " + Path.GetFileName(imagePath) + " to finish the update.");
 

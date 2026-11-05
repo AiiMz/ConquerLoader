@@ -251,12 +251,56 @@ namespace ConquerLoader
                 RestartAfterSelfUpdate(outcome.RelaunchImagePath);
             }
 
+            if (outcome.PluginReloadRequired)
+            {
+                // The plugins in this process are the ones just replaced. Never
+                // start the game with them: restart, or refuse.
+                if (!RestartToReloadPlugins(outcome.RelaunchImagePath))
+                {
+                    return PluginPreLaunchResult.Fail(
+                        "The launcher's plugins were updated and it needs to restart."
+                        + Environment.NewLine + Environment.NewLine
+                        + "Close the launcher and start it again.");
+                }
+            }
+
             if (!outcome.CanLaunch)
             {
                 return PluginPreLaunchResult.Fail(outcome.Message ?? outcome.Summary);
             }
 
             return PluginPreLaunchResult.Success();
+        }
+
+        /// <summary>
+        /// Starts a fresh loader so it loads the plugins the patch just wrote,
+        /// and ends this one. Returns false only if the restart could not be
+        /// started - unlike the self-update restart, carrying on is NOT
+        /// acceptable here, because carrying on means launching the game with
+        /// the stale plugins.
+        /// </summary>
+        private static bool RestartToReloadPlugins(string imagePath)
+        {
+            try
+            {
+                string[] all = Environment.GetCommandLineArgs();
+                string[] arguments = new string[Math.Max(0, all.Length - 1)];
+                if (arguments.Length > 0) Array.Copy(all, 1, arguments, 0, arguments.Length);
+
+                CLCore.Patching.SelfUpdate.Relaunch(
+                    imagePath,
+                    arguments,
+                    line => LogWritter.Write("[Patch] " + line),
+                    CLCore.Patching.ClientPatcher.PluginReloadGuardVariable);
+            }
+            catch (Exception ex)
+            {
+                LogWritter.Write("[Patch] Plugins were updated but the loader could not restart itself (" + ex.Message + "). Not launching.");
+                return false;
+            }
+
+            Environment.Exit(0);
+            return true;
         }
 
         /// <summary>

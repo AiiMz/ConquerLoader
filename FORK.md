@@ -191,6 +191,33 @@ run of backslashes before a quote or at the end of a quoted argument, and wrong
 everywhere else. Nothing about rereading the method showed it; the first
 restarted process did.
 
+## Plugins the patch layer updates
+
+Plugins under `Plugins\` ship through the manifest like any other file, and two
+things make that safe.
+
+**They are loaded from bytes, never `Assembly.LoadFile`.** Plugins load when the
+window opens, before the patch runs on Play. `LoadFile` keeps the DLL locked for
+the life of the process, so the first release that changed
+`GarmentMotionPlugin.dll` failed for every player with "access denied" and a
+"stopped part-way through" dialog — and failed the same way on every retry,
+because every start locked it again. `FileInstaller` also moves an in-use file
+aside to `<file>.eapatch.old` rather than failing (rename is allowed on a mapped
+image, delete is not), which covers `Conquer.exe` and the injected
+`GarmentMotionHook.dll` while another client is open.
+
+**A changed plugin restarts the loader before the game can start.** The
+plugins in memory are the ones the patch just replaced, so when any
+`Plugins\**\*.dll` is written and the rest of the patch succeeded,
+`PatchOutcome.PluginReloadRequired` is set and `Core.RunAutoPatch` restarts the
+loader instead of launching. The player presses Play once more; the patch finds
+nothing to do and the game starts with the new plugins. If the restart cannot be
+started, the launch is refused — carrying on is what this exists to prevent.
+Its guard is `CONQUERLOADER_PLUGINSRELOADED`, separate from the self-update
+guard, so a release that changes the loader *and* a plugin restarts once for
+each; plugins changing again inside the restarted process refuses instead of
+looping.
+
 ## The launcher is EternalAbyss.exe
 
 The exe players double-click is `EternalAbyss.exe`. It is the same build as

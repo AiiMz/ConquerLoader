@@ -207,7 +207,14 @@ namespace CLCore
 
         private static void LoadInstalledPluginAssembly(string assemblyPath, PluginSettingsFile settings)
         {
-            Assembly assembly = Assembly.LoadFile(Path.GetFullPath(assemblyPath));
+            // FROM BYTES, NEVER LoadFile. LoadFile maps the DLL and keeps it
+            // locked for the life of the process, and plugins are loaded when the
+            // window opens - before the patch pass runs on Play. A plugin the
+            // patch layer had updated could then never be replaced: File.Delete
+            // on it is "access denied", every launch, so a shipped plugin update
+            // stopped every player from playing. Loaded from a byte array the file
+            // stays free; an update takes effect on the next start.
+            Assembly assembly = Assembly.Load(File.ReadAllBytes(Path.GetFullPath(assemblyPath)));
             List<PluginCatalogItem> items = CreateCatalogItemsFromAssembly(
                 assembly,
                 settings,
