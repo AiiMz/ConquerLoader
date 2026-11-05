@@ -236,7 +236,8 @@ namespace ConquerLoader
                 CLCore.Patching.ClientPatcher.DefaultTimeout,
                 line => LogWritter.Write("[Patch] " + line),
                 reportProgress,
-                CLCore.Patching.SelfUpdate.RunningImagePath());
+                CLCore.Patching.SelfUpdate.RunningImagePath(),
+                context.ReportStatus);
 
             if (outcome.RelaunchRequired)
             {

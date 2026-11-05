@@ -81,6 +81,11 @@ namespace CLCore.Patching
     {
         public static PatchPlan Create(string clientRoot, Manifest manifest)
         {
+            return Create(clientRoot, manifest, null);
+        }
+
+        public static PatchPlan Create(string clientRoot, Manifest manifest, Action<int, int, string> checking)
+        {
             if (clientRoot == null) throw new ArgumentNullException(nameof(clientRoot));
             if (manifest == null) throw new ArgumentNullException(nameof(manifest));
 
@@ -88,6 +93,7 @@ namespace CLCore.Patching
 
             foreach (ManifestFile entry in manifest.Files)
             {
+                checking?.Invoke(plan.Files.Count + 1, manifest.FileCount, entry.Path);
                 // Throws on anything unsafe. Validate() has already run over the
                 // whole document, so reaching this is a bug rather than input.
                 string full = ClientPaths.Resolve(clientRoot, entry.Path);

@@ -34,6 +34,7 @@
             <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F4F7FC" />
             <SolidColorBrush x:Key="TextSecondaryBrush" Color="#D3D9E3" />
             <SolidColorBrush x:Key="GoldBrush" Color="#E7EBF3" />
+            <SolidColorBrush x:Key="LaunchGoldBrush" Color="#FAEB8C" />
 
             <Style x:Key="CardBorderStyle" TargetType="Border">
                 <Setter Property="Padding" Value="28" />
@@ -181,9 +182,9 @@
                                 <Border Margin="1"
                                     CornerRadius="15"
                                     BorderBrush="#2AFFE3B8"
-                                    BorderThickness="1"
-                                    Opacity="0.3">
+                                    BorderThickness="1">
                                     <ContentPresenter HorizontalAlignment="Center"
+                                                  TextElement.Foreground="{TemplateBinding Foreground}"
                                                   VerticalAlignment="Center" />
                                 </Border>
                             </Border>
@@ -201,6 +202,10 @@
                                 </Trigger>
                                 <Trigger Property="IsEnabled" Value="False">
                                     <Setter TargetName="PrimaryBorder" Property="Opacity" Value="0.45" />
+                                    <Setter TargetName="PrimaryBorder" Property="Background" Value="#29262B" />
+                                    <Setter TargetName="PrimaryBorder" Property="BorderBrush" Value="#6F6870" />
+                                    <Setter Property="Foreground" Value="#A49DA5" />
+                                    <Setter Property="Cursor" Value="Arrow" />
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
@@ -213,7 +218,7 @@
                 <Setter Property="FontSize" Value="21" />
                 <Setter Property="FontWeight" Value="SemiBold" />
                 <Setter Property="Padding" Value="28,12" />
-                <Setter Property="Foreground" Value="#FFF8F1" />
+                <Setter Property="Foreground" Value="{StaticResource LaunchGoldBrush}" />
             </Style>
 
             <Style x:Key="SecondaryButtonStyle" TargetType="Button">
@@ -747,6 +752,17 @@
                                                FontWeight="SemiBold"
                                                Foreground="{StaticResource TextSecondaryBrush}"
                                                Text="0%" />
+                                            <TextBlock x:Name="txtProgressStatus"
+                                               Margin="0,8,0,0"
+                                               Height="32"
+                                               LineHeight="16"
+                                               FontSize="12"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               Text="Ready to enter."
+                                               TextAlignment="Center"
+                                               TextWrapping="Wrap"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>

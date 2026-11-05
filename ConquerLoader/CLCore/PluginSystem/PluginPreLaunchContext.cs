@@ -15,6 +15,7 @@ namespace CLCore
         public bool UseDirectX9Environment { get; set; }
         public Dictionary<string, string> Values { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         public Action<int> ReportProgress { get; set; }
+        public Action<string> ReportStatus { get; set; }
         public Action<string> Log { get; set; }
     }
 }

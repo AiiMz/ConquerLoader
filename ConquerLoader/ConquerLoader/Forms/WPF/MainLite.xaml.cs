@@ -49,6 +49,7 @@ namespace ConquerLoader.Forms.WPF
             worker.WorkerSupportsCancellation = true;
             worker.DoWork += Worker_DoWork;
             worker.ProgressChanged += Worker_ProgressChanged;
+            worker.RunWorkerCompleted += Worker_RunWorkerCompleted;
 
             Loaded += MainLite_Load;
             StateChanged += TrayMinimizerForm_Resize;
@@ -298,7 +299,7 @@ namespace ConquerLoader.Forms.WPF
             ApplyStaticTexts();
             ApplyWindowTitle();
             Core.LogWritter.Write("Loaded config.json");
-            btnStart.IsEnabled = LoaderConfig.Servers.Count > 0;
+            btnStart.IsEnabled = !worker.IsBusy && LoaderConfig.Servers.Count > 0;
             SetFpsSelectionFromConfig();
             tglFPSUnlock.IsChecked = LoaderConfig.FPSUnlock;
             tglHideWings.IsChecked = LoaderConfig.HideWings;
@@ -377,6 +378,8 @@ namespace ConquerLoader.Forms.WPF
 
         private void BtnStart_Click(object sender, RoutedEventArgs e)
         {
+            if (worker.IsBusy || !btnStart.IsEnabled) return;
+
             try
             {
                 if (LoaderConfig == null || lstServers.SelectedItem == null)
@@ -460,12 +463,17 @@ namespace ConquerLoader.Forms.WPF
                         Core.LogWritter.Write("[+] Changing ScrHeight to " + (LoaderConfig.FHDResolution ? "1080" : LoaderConfig.HighResolution ? "768" : "600"));
                     }
 
+                    pBar.Value = 0;
+                    txtProgressValue.Text = "0%";
+                    txtProgressStatus.Text = T("mainPreparingLaunch", "Preparing to launch...");
+                    SetLaunchBusy(true);
                     worker.RunWorkerAsync();
                 }
             }
             catch (Exception ex)
             {
                 Core.LogWritter.Write("Error found: " + ex);
+                SetLaunchBusy(false);
             }
         }
 
@@ -573,7 +581,8 @@ namespace ConquerLoader.Forms.WPF
                     int safeValue = Math.Max(1, Math.Min(8, progressValue));
                     worker.ReportProgress(safeValue);
                 },
-                Log = message => Core.LogWritter.Write("[Plugin] " + message)
+                Log = message => Core.LogWritter.Write("[Plugin] " + message),
+                ReportStatus = message => worker.ReportProgress(-1, message)
             };
 
             // Before the plugins, because a plugin that patches or rewrites a
@@ -591,6 +600,7 @@ namespace ConquerLoader.Forms.WPF
             // Core.ApplyWingVisibility.
             Core.ApplyWingVisibility(preLaunchContext);
 
+            worker.ReportProgress(-1, T("mainPreparingClient", "Preparing client options and plugins..."));
             PluginPreLaunchResult preLaunchResult = Core.RunPreLaunchPlugins(preLaunchContext);
             if (!preLaunchResult.ContinueLaunch)
             {
@@ -598,6 +608,7 @@ namespace ConquerLoader.Forms.WPF
                 return;
             }
 
+            worker.ReportProgress(-1, T("mainStartingClient", "Starting the game client..."));
             Process conquerProc = Process.Start(new ProcessStartInfo
             {
                 FileName = pathToConquerExe,
@@ -745,10 +756,17 @@ namespace ConquerLoader.Forms.WPF
 
         private void Worker_ProgressChanged(object sender, ProgressChangedEventArgs e)
         {
+            if (e.UserState is string)
+            {
+                txtProgressStatus.Text = (string)e.UserState;
+            }
+            if (e.ProgressPercentage < 0) return;
+
             pBar.Value = e.ProgressPercentage;
             txtProgressValue.Text = e.ProgressPercentage + "%";
             if (pBar.Value >= 100)
             {
+                txtProgressStatus.Text = T("mainClientStarted", "Game client started.");
                 if (Constants.CloseOnFinish)
                 {
                     LoaderEvents.LauncherExitStartEvent(new List<Parameter> { new Parameter { Id = "CLOSE_MESSAGE", Value = "Finished" } });
@@ -766,6 +784,29 @@ namespace ConquerLoader.Forms.WPF
                         WindowState = WindowState.Minimized;
                     }
                 }
+            }
+        }
+
+        private void SetLaunchBusy(bool busy)
+        {
+            btnStart.IsEnabled = !busy && LoaderConfig != null && LoaderConfig.Servers.Count > 0;
+            btnStart.Content = busy ? T("mainLaunching", "PLEASE WAIT") : T("btnStart", "ENTER");
+            lstServers.IsEnabled = !busy;
+            btnSettings.IsEnabled = !busy && !Core.UseEncryptedConfig;
+        }
+
+        private void Worker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            SetLaunchBusy(false);
+            if (e.Error != null)
+            {
+                Core.LogWritter.Write("Launch failed: " + e.Error);
+                txtProgressStatus.Text = T("mainLaunchFailed", "Launch failed. Please try again.");
+                ShowWarning(e.Error.Message);
+            }
+            else if (pBar.Value < 100)
+            {
+                txtProgressStatus.Text = T("mainLaunchStopped", "Launch stopped. Press Enter to retry.");
             }
         }
 
@@ -1060,7 +1101,11 @@ namespace ConquerLoader.Forms.WPF
             ApplyTranslation("commonUnlimited", tglFPSUnlock, "Unlimited");
             ApplyTranslation("commonEnabled", tglHideWings, "Enabled");
             noty.Visible = true;
-            txtProgressValue.Text = "0%";
+            if (!worker.IsBusy)
+            {
+                txtProgressValue.Text = "0%";
+                txtProgressStatus.Text = T("mainReadyToEnter", "Ready to enter.");
+            }
             UpdateStatusBadgeNeutral();
             txtServerStatusHint.Text = T("mainSelectedServerHint", "The selected server will be checked before launch.");
             txtSelectedServer.Text = LoaderConfig != null && LoaderConfig.DefaultServer != null

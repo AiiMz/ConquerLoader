@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
 
@@ -36,16 +37,22 @@ namespace CLCore.Patching
         /// </summary>
         public static void Install(string clientRoot, ManifestFile entry, Stream content)
         {
+            Install(clientRoot, entry, content, null, null);
+        }
+
+        public static void Install(string clientRoot, ManifestFile entry, Stream content, Action<long> progress, Action<string> status)
+        {
             string destination = ClientPaths.Resolve(clientRoot, entry.Path);
 
             // Whatever a previous update moved aside for this path is normally free
             // by now; clear it before possibly needing the name again.
             SweepMovedAside(destination);
 
-            string partial = Stage(clientRoot, entry, content);
+            string partial = Stage(clientRoot, entry, content, progress, status);
 
             try
             {
+                status?.Invoke("Installing: " + entry.Path);
                 // File.Move has no overwrite overload on .NET Framework, so the
                 // destination is removed first. That is a window in which the
                 // file does not exist - acceptable because the client is not
@@ -158,6 +165,11 @@ namespace CLCore.Patching
         /// </summary>
         public static string Stage(string clientRoot, ManifestFile entry, Stream content)
         {
+            return Stage(clientRoot, entry, content, null, null);
+        }
+
+        public static string Stage(string clientRoot, ManifestFile entry, Stream content, Action<long> progress, Action<string> status)
+        {
             string destination = ClientPaths.Resolve(clientRoot, entry.Path);
             string directory = Path.GetDirectoryName(destination);
 
@@ -176,7 +188,30 @@ namespace CLCore.Patching
                 using (FileStream file = new FileStream(partial, FileMode.Create, FileAccess.Write, FileShare.None))
                 using (CryptoStream hashing = new CryptoStream(file, sha, CryptoStreamMode.Write))
                 {
-                    content.CopyTo(hashing);
+                    if (progress == null)
+                    {
+                        content.CopyTo(hashing);
+                    }
+                    else
+                    {
+                        byte[] buffer = new byte[81920];
+                        long received = 0;
+                        Stopwatch reporting = Stopwatch.StartNew();
+                        progress(0);
+                        int count;
+                        while ((count = content.Read(buffer, 0, buffer.Length)) > 0)
+                        {
+                            hashing.Write(buffer, 0, count);
+                            received += count;
+                            if (reporting.ElapsedMilliseconds >= 100)
+                            {
+                                progress(received);
+                                reporting.Restart();
+                            }
+                        }
+                        progress(received);
+                    }
+                    status?.Invoke("Verifying: " + entry.Path);
                     hashing.FlushFinalBlock();
                     written = file.Length;
                     actualHash = PatchPlanner.ToHex(sha.Hash);

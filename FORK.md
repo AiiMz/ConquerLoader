@@ -43,6 +43,7 @@ and this is the repository that makes it possible — upstream is open source, s
 | `CLCore/Models/LoaderConfig.cs` | **Two fields**, `HideWings` and `FpsLimit`. Absent from a `config.json` means false and 60, so an existing one gets the cap without being edited |
 | `ConquerCipherHook/FpsLimiter.*` | **New.** The frame cap itself, in the hook that is already injected into the client |
 | `ConquerLoader/Forms/WPF/MainLite.xaml` + `.xaml.cs` | **Two cards** in the Options panel: Hide Wings, and the frame cap that replaced the FPS Unlock toggle |
+| `MainLite`, `PluginPreLaunchContext`, `CLCore/Patching/` | **Launch feedback.** Gold Enter text at full opacity; a disabled Please Wait button throughout launch; live patch phases, filenames, counts, byte totals and retries below the percentage. Byte and file-check notifications are throttled to keep the UI responsive. Existing patch APIs retain their original overloads |
 | `ConquerLoader/Core.cs` | **One method**, `SafeIO.DiffersFrom`, so a changed hook DLL reaches an install that already has an older one |
 | `Tests/CLCore.Tests/` | **New.** Tests over the path guard, the manifest validation, the compare-and-install pair, the self-update naming rules, the hand-off, the wing rewrite and the frame cap |
 | every `*.csproj` | `TargetFrameworkVersion` v4.6.2 → **v4.8** |

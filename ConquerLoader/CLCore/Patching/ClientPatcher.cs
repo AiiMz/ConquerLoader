@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 
@@ -102,6 +103,12 @@ namespace CLCore.Patching
         /// </summary>
         public static PatchOutcome Run(string clientRoot, Uri baseUrl, TimeSpan timeout, Action<string> log, Action<int, int> progress, string runningImagePath)
         {
+            return Run(clientRoot, baseUrl, timeout, log, progress, runningImagePath, null);
+        }
+
+        /// <summary>Reports player-facing patch activity independently of the log and percentage.</summary>
+        public static PatchOutcome Run(string clientRoot, Uri baseUrl, TimeSpan timeout, Action<string> log, Action<int, int> progress, string runningImagePath, Action<string> status)
+        {
             if (clientRoot == null) throw new ArgumentNullException(nameof(clientRoot));
             if (baseUrl == null) throw new ArgumentNullException(nameof(baseUrl));
 
@@ -116,6 +123,7 @@ namespace CLCore.Patching
                 // terms if the client really is not there, and it says so better.
                 outcome.Summary = "Patch check skipped: no such client directory " + clientRoot + ".";
                 write(outcome.Summary);
+                status?.Invoke("Update check skipped: client folder not found.");
                 return outcome;
             }
 
@@ -140,6 +148,7 @@ namespace CLCore.Patching
 
                     try
                     {
+                        status?.Invoke("Checking for updates: downloading the file list...");
                         manifest = ManifestReader.Parse(server.GetManifestJson());
                     }
                     catch (Exception ex) when (ex is IOException || ex is HttpRequestException || ex is InvalidDataException)
@@ -149,6 +158,7 @@ namespace CLCore.Patching
                         // mid-deploy, or this machine is offline.
                         outcome.Summary = "Could not check for updates, launching anyway: " + ex.Message;
                         write(outcome.Summary);
+                        status?.Invoke("Could not check for updates. Continuing to launch...");
                         return outcome;
                     }
 
@@ -162,6 +172,7 @@ namespace CLCore.Patching
                     // to the version that shipped with the document describing it.
                     ManifestFile loaderEntry = FindRunningImage(manifest, clientRoot, runningImagePath);
 
+                    status?.Invoke("Checking the launcher for updates...");
                     if (loaderEntry != null && !MatchesOnDisk(loaderEntry, runningImagePath))
                     {
                         if (SelfUpdate.GuardIsSet())
@@ -183,8 +194,9 @@ namespace CLCore.Patching
 
                             try
                             {
-                                staged = server.DownloadStaged(loaderEntry, clientRoot);
+                                staged = server.DownloadStaged(loaderEntry, clientRoot, status);
 
+                                status?.Invoke("Installing launcher update...");
                                 string superseded = SelfUpdate.Replace(runningImagePath, staged);
                                 staged = null;
 
@@ -196,6 +208,7 @@ namespace CLCore.Patching
                                 write("Replaced " + Path.GetFileName(runningImagePath)
                                     + "; the previous one is " + Path.GetFileName(superseded) + " and is removed on the next launch.");
                                 write(outcome.Summary);
+                                status?.Invoke("Launcher updated. Restarting...");
 
                                 return outcome;
                             }
@@ -238,7 +251,15 @@ namespace CLCore.Patching
                         }
                     }
 
-                    PatchPlan plan = PatchPlanner.Create(clientRoot, manifest);
+                    Stopwatch checking = Stopwatch.StartNew();
+                    PatchPlan plan = PatchPlanner.Create(clientRoot, manifest, (index, totalFiles, path) =>
+                    {
+                        if (index == 1 || index == totalFiles || checking.ElapsedMilliseconds >= 100)
+                        {
+                            status?.Invoke("Checking file " + index + " of " + totalFiles + ": " + path);
+                            checking.Restart();
+                        }
+                    });
 
                     write("up to date " + plan.UpToDateCount
                         + ", missing " + plan.MissingCount
@@ -278,6 +299,7 @@ namespace CLCore.Patching
                     {
                         outcome.Summary = "Client is up to date (manifest " + manifest.Version + ").";
                         write(outcome.Summary);
+                        status?.Invoke("Client is up to date. Preparing to launch...");
                         return outcome;
                     }
 
@@ -294,7 +316,9 @@ namespace CLCore.Patching
 
                         try
                         {
-                            server.Download(file.Entry, clientRoot);
+                            Action<string> fileStatus = status == null ? (Action<string>)null
+                                : message => status("File " + (done + 1) + " of " + total + " - " + message);
+                            server.Download(file.Entry, clientRoot, fileStatus);
                             outcome.ChangedAnything = true;
                             if (IsPluginAssembly(file.Entry.Path)) pluginsWritten.Add(file.Entry.Path);
                             write("  " + Describe(file.Reason) + " " + file.Entry.Path);
@@ -309,6 +333,7 @@ namespace CLCore.Patching
                             // player only "stopped part-way through".
                             failures.Add(file.Entry.Path);
                             write("  FAILED " + file.Entry.Path + ": " + ex.Message);
+                            status?.Invoke("Could not update: " + file.Entry.Path);
                         }
 
                         done++;
@@ -329,6 +354,7 @@ namespace CLCore.Patching
                             + "safe and will retry only what is still wrong.";
 
                         write(outcome.Summary);
+                        status?.Invoke(outcome.Summary + " Please try again.");
                         return outcome;
                     }
 
@@ -338,6 +364,11 @@ namespace CLCore.Patching
                     if (pluginsWritten.Count > 0)
                         RequirePluginReload(outcome, pluginsWritten, runningImagePath, write);
 
+                    status?.Invoke(outcome.PluginReloadRequired
+                        ? "Updates installed. Restarting the launcher to reload plugins..."
+                        : !outcome.CanLaunch
+                            ? "Updates installed. Close the launcher and start it again."
+                            : "Updated " + total + " file(s). Preparing to launch...");
                     return outcome;
                 }
             }
@@ -353,6 +384,7 @@ namespace CLCore.Patching
                 outcome.CanLaunch = !touchedTheInstall;
                 outcome.Summary = "Unexpected error while patching (" + ex.GetType().Name + "): " + ex.Message;
                 write(outcome.Summary + Environment.NewLine + ex);
+                status?.Invoke(outcome.CanLaunch ? "Update check failed. Continuing to launch..." : "Update stopped. Please try again.");
 
                 if (!outcome.CanLaunch)
                 {

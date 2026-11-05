@@ -81,6 +81,21 @@ namespace CLCore.Tests.Patching
         }
 
         [Fact]
+        public void An_updated_plugin_reports_the_required_restart_in_live_status()
+        {
+            WriteLocal("Plugins/GarmentMotionPlugin.dll", "old plugin");
+            _server.Publish("Plugins/GarmentMotionPlugin.dll", "new plugin");
+            var statuses = new List<string>();
+
+            PatchOutcome outcome = ClientPatcher.Run(_root, _server.BaseUrl,
+                TimeSpan.FromSeconds(10), _log.Add, null, Image, statuses.Add);
+
+            Assert.True(outcome.PluginReloadRequired, Log);
+            Assert.Equal("Updates installed. Restarting the launcher to reload plugins...",
+                statuses[statuses.Count - 1]);
+        }
+
+        [Fact]
         public void A_missing_plugin_restored_also_asks_for_a_restart()
         {
             _server.Publish("Plugins/GarmentMotionPlugin.dll", "plugin");

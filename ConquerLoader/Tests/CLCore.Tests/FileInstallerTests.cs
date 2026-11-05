@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -49,6 +50,48 @@ namespace CLCore.Tests.Patching
         private string PathOf(string relative)
         {
             return Path.Combine(_root, relative.Replace('/', Path.DirectorySeparatorChar));
+        }
+
+        [Fact]
+        public void Reports_streamed_bytes_and_verification_before_installing()
+        {
+            byte[] content = new byte[200000];
+            ManifestFile entry = EntryFor("ini/progress.dat", content);
+            var received = new List<long>();
+            var stages = new List<string>();
+
+            FileInstaller.Install(_root, entry, new MemoryStream(content), received.Add, message =>
+            {
+                // A phase announcement must not claim that unverified bytes are installed.
+                Assert.False(File.Exists(PathOf(entry.Path)));
+                stages.Add(message);
+            });
+
+            Assert.Equal(0, received.First());
+            Assert.Equal(content.Length, received.Last());
+            Assert.True(received.SequenceEqual(received.OrderBy(value => value)));
+            Assert.Equal(new[] { "Verifying: " + entry.Path, "Installing: " + entry.Path }, stages);
+            Assert.Equal(content, File.ReadAllBytes(PathOf(entry.Path)));
+            Assert.False(File.Exists(PathOf(entry.Path) + FileInstaller.PartialSuffix));
+        }
+
+        [Fact]
+        public void Reporting_progress_does_not_install_a_corrupt_download()
+        {
+            byte[] promised = Bytes("new content");
+            byte[] original = Bytes("original");
+            ManifestFile entry = EntryFor("progress.dat", promised);
+            File.WriteAllBytes(PathOf(entry.Path), original);
+            var stages = new List<string>();
+            long received = -1;
+
+            Assert.Throws<InvalidDataException>(() => FileInstaller.Install(_root, entry,
+                new MemoryStream(Bytes("bad content")), count => received = count, stages.Add));
+
+            Assert.Equal(promised.Length, received);
+            Assert.Equal(new[] { "Verifying: " + entry.Path }, stages);
+            Assert.Equal(original, File.ReadAllBytes(PathOf(entry.Path)));
+            Assert.False(File.Exists(PathOf(entry.Path) + FileInstaller.PartialSuffix));
         }
 
         [Fact]

@@ -79,11 +79,16 @@ namespace CLCore.Patching
         /// <summary>Fetches one file and installs it, verified.</summary>
         public void Download(ManifestFile entry, string clientRoot)
         {
+            Download(entry, clientRoot, null);
+        }
+
+        public void Download(ManifestFile entry, string clientRoot, Action<string> status)
+        {
             Fetch(entry, body =>
             {
-                FileInstaller.Install(clientRoot, entry, body);
+                FileInstaller.Install(clientRoot, entry, body, DownloadProgress(entry, status), status);
                 return null;
-            });
+            }, status);
         }
 
         /// <summary>
@@ -96,7 +101,26 @@ namespace CLCore.Patching
         /// </summary>
         public string DownloadStaged(ManifestFile entry, string clientRoot)
         {
-            return Fetch(entry, body => FileInstaller.Stage(clientRoot, entry, body));
+            return DownloadStaged(entry, clientRoot, null);
+        }
+
+        public string DownloadStaged(ManifestFile entry, string clientRoot, Action<string> status)
+        {
+            return Fetch(entry, body => FileInstaller.Stage(clientRoot, entry, body, DownloadProgress(entry, status), status), status);
+        }
+
+        private static Action<long> DownloadProgress(ManifestFile entry, Action<string> status)
+        {
+            if (status == null) return null;
+            return received => status("Downloading: " + entry.Path + " ("
+                + FormatBytes(received) + " / " + FormatBytes(entry.Size) + ")");
+        }
+
+        private static string FormatBytes(long bytes)
+        {
+            if (bytes < 1024) return bytes + " B";
+            if (bytes < 1024 * 1024) return (bytes / 1024.0).ToString("F1") + " KB";
+            return (bytes / 1024.0 / 1024.0).ToString("F1") + " MB";
         }
 
         /// <summary>
@@ -105,7 +129,7 @@ namespace CLCore.Patching
         /// down - and a run that gave up on file 300 of 844 would leave an
         /// install in a state the next run has to work out from scratch anyway.
         /// </summary>
-        private string Fetch(ManifestFile entry, Func<Stream, string> sink)
+        private string Fetch(ManifestFile entry, Func<Stream, string> sink, Action<string> status)
         {
             Exception last = null;
 
@@ -113,6 +137,7 @@ namespace CLCore.Patching
             {
                 try
                 {
+                    status?.Invoke("Connecting to download: " + entry.Path + " (attempt " + attempt + " of " + Attempts + ")");
                     using (HttpResponseMessage response = Send(ClientPaths.FileUrl(_baseUrl, entry.Path), NotFoundIsMissingFile))
                     using (Stream body = response.Content.ReadAsStreamAsync().GetAwaiter().GetResult())
                         return sink(body);
@@ -121,7 +146,10 @@ namespace CLCore.Patching
                 {
                     last = ex;
                     if (attempt < Attempts)
+                    {
+                        status?.Invoke("Download interrupted. Retrying: " + entry.Path + " in " + attempt + " second(s)...");
                         Thread.Sleep(TimeSpan.FromSeconds(attempt));
+                    }
                 }
             }
 
