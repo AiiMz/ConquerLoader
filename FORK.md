@@ -514,14 +514,21 @@ launch.
 
 ## Building
 
-In Visual Studio, open ConquerLoader\ConquerLoader.sln and use **Build Solution**. The solution maps Debug|Any CPU to Win32 for both native projects and builds them. ConquerLoader depends on ConquerCipherHook, so the hook builds first; its post-build target copies the resulting DLL to ConquerLoader\Resources\ConquerCipherHook.dll. The C# build then embeds that file in EternalAbyss.exe. The completed loader is copied to the parent repository 6300\EternalAbyss.exe when that client directory exists.
+The five managed projects and launcher tests use SDK-style `net10.0-windows` projects. Build with the .NET 10 SDK; the native hook still needs Visual Studio C++/Windows SDK. Costura weaving, Framework startup configuration and binding redirects are retired. A plain build is a development output, not a player distribution, and does not overwrite the parent client install.
 
 Both native projects target the installed Visual Studio 18 v145 toolset in Debug and Release. The hook is 32-bit and uses the static CRT; see “The hook does not use MFC” above for why those settings are explicit.
 
-Command-line solution build, from the ConquerLoader repository root:
+From the EternalAbyss parent repository, build the complete matched distribution:
 
-`
-msbuild ConquerLoader\ConquerLoader.sln -restore -t:Build -p:Configuration=Release -p:Platform="Any CPU" -v:minimal -nologo
-`
+```powershell
+$revision = git -C ConquerLoader rev-parse HEAD
+Tools/ClientPackage/Build-ClientLoader.ps1 -LoaderRoot ./ConquerLoader -SourceRevision $revision -OutDir ./artifacts/loader-net10
+```
 
-ConquerLoader/Release/EternalAbyss.exe is also the project output. Building the .csproj by itself does not build the native hook first; use the solution so the embedded resource is refreshed from the native build. dotnet test ConquerLoader\Tests\CLCore.Tests\CLCore.Tests.csproj runs the test project, which is not included in the Visual Studio solution.
+This rebuilds the native cipher hook first, builds every managed project, runs the launcher tests, publishes a compressed self-contained `win-x86` bundle, and builds the matching garment plugin. The artifact carries `EternalAbyss.exe`, `Runtime10/GarmentMotionPlugin.dll`, runtime metadata and hash/source provenance. Runtime smoke verifies WPF and Metro UI construction, plugin discovery, loopback SimpleTCP and apphost path resolution. The large generated EXE is an artifact, not a checked-in client binary.
+
+From this submodule alone, `dotnet test ConquerLoader/Tests/CLCore.Tests/CLCore.Tests.csproj -c Release` runs the tests; `dotnet publish ConquerLoader/ConquerLoader/ConquerLoader.csproj -c Release -r win-x86 --self-contained true` publishes the launcher after the native hook has been refreshed. Its embedded managed assembly is still named `EternalAbyss`, preserving the WPF resource URIs.
+
+`Runtime10` is deliberately outside the old Framework launcher's `Plugins` scan. Existing clients replace/relaunch their launcher before patching content. If an old launcher cannot update itself, it can safely download the new runtime plugin as inert data and keep its Framework plugin. The .NET 10 launcher prefers a matching `Runtime10` replacement over the legacy `Plugins` DLL and restarts after plugin changes. New archives omit the superseded owned Framework plugin. Other third-party plugins are preserved; they need their own .NET 10 compatibility verification.
+
+MetroModernUI 1.4.0 and SimpleTCP 1.0.24 still supply Framework-compatible package assemblies. Their NU1701 warnings remain visible. The runtime probe exercises those libraries on .NET 10; no Framework runtime is bundled or required. Full game login, DX8/DX9 launch, tray behavior and live self-update remain real-client release checks.

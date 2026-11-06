@@ -94,7 +94,7 @@ namespace CLCore.Patching
         /// <summary>
         /// The file this process is running from.
         ///
-        /// MainModule first because the loader is a Costura-packed single file
+        /// ProcessPath first because the loader is a self-contained .NET bundle
         /// and this is the question Windows itself answers. The assembly location
         /// is the fallback for the case where MainModule is not readable, and
         /// null - meaning "do not self-update" - is preferred over a guess: a
@@ -102,6 +102,8 @@ namespace CLCore.Patching
         /// </summary>
         public static string RunningImagePath()
         {
+            string appHost = Environment.ProcessPath;
+            if (!string.IsNullOrEmpty(appHost)) return appHost;
             try
             {
                 using (Process self = Process.GetCurrentProcess())

@@ -54,17 +54,46 @@ namespace CLCore.Tests.Patching
 
         [Theory]
         [InlineData("Plugins/GarmentMotionPlugin.dll", true)]
+        [InlineData("Runtime10/GarmentMotionPlugin.dll", true)]
+        [InlineData("runtime10/Nested/Plugin.DLL", true)]
         [InlineData("plugins/Remote/Thing.DLL", true)]
         [InlineData("Plugins\\Nested\\A.dll", true)]
         [InlineData("Plugins/plugin-state.json", false)]
         [InlineData("GarmentMotionHook.dll", false)]
         [InlineData("ini/Plugins/x.dll", false)]
         [InlineData("PluginsX/a.dll", false)]
+        [InlineData("Runtime100/a.dll", false)]
         [InlineData("", false)]
         [InlineData(null, false)]
         public void Recognises_plugin_assemblies_by_path(string path, bool expected)
         {
             Assert.Equal(expected, ClientPatcher.IsPluginAssembly(path));
+        }
+
+        [Fact]
+        public void Runtime_plugin_replaces_only_its_legacy_counterpart_in_discovery()
+        {
+            WriteLocal("Plugins/GarmentMotionPlugin.dll", "old plugin");
+            WriteLocal("Plugins/OtherPlugin.dll", "another plugin");
+            WriteLocal("Runtime10/GarmentMotionPlugin.dll", "runtime plugin");
+            string[] paths = PluginLoader.FindInstalledPluginAssemblies(_root);
+            Assert.Contains(Path.Combine(_root, "Runtime10", "GarmentMotionPlugin.dll"), paths);
+            Assert.Contains(Path.Combine(_root, "Plugins", "OtherPlugin.dll"), paths);
+            Assert.DoesNotContain(Path.Combine(_root, "Plugins", "GarmentMotionPlugin.dll"), paths);
+        }
+
+        [Fact]
+        public void Runtime_plugin_is_untouched_until_the_launcher_has_been_replaced()
+        {
+            WriteLocal("EternalAbyss.exe", "old launcher");
+            WriteLocal("Plugins/GarmentMotionPlugin.dll", "old plugin");
+            _server.Publish("EternalAbyss.exe", "new launcher");
+            _server.Publish("Runtime10/GarmentMotionPlugin.dll", "new runtime plugin");
+            PatchOutcome outcome = Run();
+            Assert.True(outcome.RelaunchRequired, Log);
+            Assert.False(outcome.PluginReloadRequired, Log);
+            Assert.Equal("old plugin", ReadLocal("Plugins/GarmentMotionPlugin.dll"));
+            Assert.False(File.Exists(Path.Combine(_root, "Runtime10", "GarmentMotionPlugin.dll")));
         }
 
         [Fact]

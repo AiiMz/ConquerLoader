@@ -21,13 +21,9 @@ namespace CLCore
             Plugins = new List<IPlugin>();
             PluginCatalog = new List<PluginCatalogItem>();
 
-            if (Directory.Exists(Constants.PluginsFolderName))
+            foreach (string file in FindInstalledPluginAssemblies(Directory.GetCurrentDirectory()))
             {
-                string[] files = Directory.GetFiles(Constants.PluginsFolderName, "*.dll", SearchOption.AllDirectories);
-                foreach (string file in files)
-                {
-                    LoadInstalledPluginAssembly(file, settings);
-                }
+                LoadInstalledPluginAssembly(file, settings);
             }
 
             PluginCatalog = PluginCatalog
@@ -37,6 +33,24 @@ namespace CLCore
 
             PluginSettingsStore.CleanupMissingEntries(settings, PluginCatalog.Where(item => item.IsInstalled));
             PluginSettingsStore.Save(settings);
+        }
+
+        public static string[] FindInstalledPluginAssemblies(string clientRoot)
+        {
+            string runtime = Path.Combine(clientRoot, Constants.RuntimePluginsFolderName);
+            string legacy = Path.Combine(clientRoot, Constants.PluginsFolderName);
+            var files = new List<string>();
+            if (Directory.Exists(runtime))
+                files.AddRange(Directory.GetFiles(runtime, "*.dll", SearchOption.AllDirectories));
+            if (Directory.Exists(legacy))
+            {
+                foreach (string file in Directory.GetFiles(legacy, "*.dll", SearchOption.AllDirectories))
+                {
+                    string replacement = Path.Combine(runtime, Path.GetRelativePath(legacy, file));
+                    if (!File.Exists(replacement)) files.Add(file);
+                }
+            }
+            return files.ToArray();
         }
 
         public async Task<int> LoadPluginsFromAPI(LoaderConfig loaderConfig)

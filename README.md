@@ -3,7 +3,8 @@ ConquerLoader is a software intercepts the connection on the client to make it p
 
 ## Compatibility
 - Tested and working on 5065 to 6736 Conquer Clients (English Client based)
-- Minimal SO: Windows 7 SP1
+- Requires a Windows release supported by .NET 10; Windows 7/8.1 are no longer supported. See [Microsoft's Windows support table](https://learn.microsoft.com/dotnet/core/install/windows).
+- The launcher ships a self-contained .NET 10 x86 bundle. Players do not install a separate .NET runtime.
 
 ## Request features
 Can request features in oficial website: https://conquerloader.com/requests/

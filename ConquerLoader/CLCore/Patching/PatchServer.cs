@@ -12,10 +12,9 @@ namespace CLCore.Patching
     ///
     /// SYNCHRONOUS ON PURPOSE. This runs on the loader's BackgroundWorker, which
     /// is already off the UI thread and already does exactly one thing at a time.
-    /// Making it async would buy nothing but a colour on every method in the call
-    /// chain, and .NET Framework has no synchronous HttpClient.Send to call
-    /// instead - so the waits are explicit GetAwaiter().GetResult() rather than
-    /// hidden.
+    /// The existing streaming/download retry path keeps explicit
+    /// GetAwaiter().GetResult() waits on that worker; migration does not change
+    /// the launch path's threading or progress ordering.
     ///
     /// One HttpClient for the run, so hundreds of possible requests share one
     /// connection and one TLS handshake.
@@ -31,20 +30,8 @@ namespace CLCore.Patching
         {
             _baseUrl = baseUrl;
 
-            // .NET Framework picks its TLS versions from ServicePointManager and
-            // its default on an un-patched machine predates TLS 1.2, which every
-            // host worth fetching from now requires. Adding rather than assigning
-            // leaves anything the host application already enabled alone.
-            try
-            {
-                ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
-            }
-            catch (NotSupportedException)
-            {
-                // A Windows build too old to know the value. Nothing to do about
-                // it here, and the request below will say so in its own words.
-            }
-
+            // .NET 10 negotiates TLS through the OS defaults. ServicePointManager
+            // does not control HttpClient's TLS policy on the supported runtime.
             HttpClientHandler handler = new HttpClientHandler
             {
                 // DecompressionMethods.All is .NET Core; these two are what

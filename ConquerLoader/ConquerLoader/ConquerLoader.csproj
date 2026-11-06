@@ -1,373 +1,75 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="..\packages\Costura.Fody.6.0.0\build\Costura.Fody.props" Condition="Exists('..\packages\Costura.Fody.6.0.0\build\Costura.Fody.props')" />
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{AF23285A-B4CD-46B1-962D-0CD66A55482B}</ProjectGuid>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <OutputType>WinExe</OutputType>
     <RootNamespace>ConquerLoader</RootNamespace>
-    <!-- EternalAbyss.exe since the rename. RootNamespace deliberately did NOT
-         move with it: it names the manifest resources every .resx and every
-         Properties.Resources lookup already resolves through, and renaming it
-         buys nothing a player can see.
-
-         THE ASSEMBLY NAME AND THE FILE NAME HAVE TO MOVE TOGETHER. Setting
-         TargetName alone produces EternalAbyss.exe from an assembly still
-         called ConquerLoader, which builds cleanly and then dies on the first
-         window: the XAML compiler writes its generated pack URIs from the
-         target name ("/EternalAbyss;component/Forms/WPF/MainLite.xaml") while
-         the assembly identity is still ConquerLoader, so LoadComponent throws
-         FileNotFoundException for an assembly that does not exist. That was
-         tried here and cost a launch. The hand-written pack URIs in the seven
-         WPF windows name the assembly too and were rewritten with this. -->
     <AssemblyName>EternalAbyss</AssemblyName>
-    <!-- v4.8, not upstream's v4.6.2. The 4.6.2 targeting pack is not installed
-         by Visual Studio 2022 by default and is not on the GitHub Windows runner
-         images, so a v4.6.2 build needs a developer pack nobody thinks to
-         install and fails with MSB3644 when they have not. 4.8 ships in-box on
-         every Windows 10 1903 and later, which is the whole population that can
-         run this client. -->
-    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-    <Deterministic>true</Deterministic>
-    <NuGetPackageImportStamp>
-    </NuGetPackageImportStamp>
-    <TargetFrameworkProfile />
-    <IsWebBootstrapper>false</IsWebBootstrapper>
-    <PublishUrl>publish\</PublishUrl>
-    <Install>true</Install>
-    <InstallFrom>Disk</InstallFrom>
-    <UpdateEnabled>false</UpdateEnabled>
-    <UpdateMode>Foreground</UpdateMode>
-    <UpdateInterval>7</UpdateInterval>
-    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
-    <UpdatePeriodically>false</UpdatePeriodically>
-    <UpdateRequired>false</UpdateRequired>
-    <MapFileExtensions>true</MapFileExtensions>
-    <ApplicationRevision>0</ApplicationRevision>
-    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
-    <UseApplicationTrust>false</UseApplicationTrust>
-    <BootstrapperEnabled>true</BootstrapperEnabled>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <EnableDefaultPageItems>false</EnableDefaultPageItems>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>7.3</LangVersion>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>x86</PlatformTarget>
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>
-    </DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
-    <Prefer32Bit>false</Prefer32Bit>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <PlatformTarget>x86</PlatformTarget>
-    <DebugType>pdbonly</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>..\Release\</OutputPath>
-    <DefineConstants>
-    </DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <Prefer32Bit>false</Prefer32Bit>
-  </PropertyGroup>
+  <PropertyGroup><UseWPF>true</UseWPF></PropertyGroup>
   <PropertyGroup>
     <ApplicationIcon>ConquerLoaderLogo.ico</ApplicationIcon>
+    <StartupObject>ConquerLoader.Program</StartupObject>
+    <PlatformTarget>x86</PlatformTarget>
+    <RuntimeIdentifier>win-x86</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <PublishTrimmed>false</PublishTrimmed>
+    <DebugType>embedded</DebugType>
   </PropertyGroup>
-  <PropertyGroup />
-  <PropertyGroup />
-  <PropertyGroup>
-    <SignManifests>false</SignManifests>
-  </PropertyGroup>
-  <PropertyGroup>
-    <SignAssembly>false</SignAssembly>
-  </PropertyGroup>
-  <PropertyGroup>
-    <AssemblyOriginatorKeyFile>
-    </AssemblyOriginatorKeyFile>
-  </PropertyGroup>
-  <PropertyGroup>
-    <DelaySign>false</DelaySign>
-  </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="Costura, Version=6.0.0.0, Culture=neutral, PublicKeyToken=9919ef960d84173d, processorArchitecture=MSIL">
-      <HintPath>..\packages\Costura.Fody.6.0.0\lib\netstandard2.0\Costura.dll</HintPath>
-    </Reference>
-    <Reference Include="ICSharpCode.SharpZipLib, Version=1.4.2.13, Culture=neutral, PublicKeyToken=1b03e6acf1164f73, processorArchitecture=MSIL">
-      <HintPath>..\packages\SharpZipLib.1.4.2\lib\netstandard2.0\ICSharpCode.SharpZipLib.dll</HintPath>
-    </Reference>
-    <Reference Include="MetroFramework, Version=1.4.0.0, Culture=neutral, PublicKeyToken=5f91a84759bf584a, processorArchitecture=MSIL">
-      <HintPath>..\packages\MetroModernUI.1.4.0.0\lib\net\MetroFramework.dll</HintPath>
-    </Reference>
-    <Reference Include="MetroFramework.Design, Version=1.4.0.0, Culture=neutral, PublicKeyToken=5f91a84759bf584a, processorArchitecture=MSIL">
-      <HintPath>..\packages\MetroModernUI.1.4.0.0\lib\net\MetroFramework.Design.dll</HintPath>
-    </Reference>
-    <Reference Include="MetroFramework.Fonts, Version=1.4.0.0, Culture=neutral, PublicKeyToken=5f91a84759bf584a, processorArchitecture=MSIL">
-      <HintPath>..\packages\MetroModernUI.1.4.0.0\lib\net\MetroFramework.Fonts.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.Bcl.Cryptography, Version=10.0.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.Bcl.Cryptography.10.0.1\lib\net462\Microsoft.Bcl.Cryptography.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.Win32.Primitives, Version=4.0.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.Win32.Primitives.4.3.0\lib\net46\Microsoft.Win32.Primitives.dll</HintPath>
-    </Reference>
-    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>..\packages\Newtonsoft.Json.13.0.4\lib\net45\Newtonsoft.Json.dll</HintPath>
-    </Reference>
-    <Reference Include="Newtonsoft.Json.Bson, Version=1.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>..\packages\Newtonsoft.Json.Bson.1.0.3\lib\net45\Newtonsoft.Json.Bson.dll</HintPath>
-    </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.AppContext, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.AppContext.4.3.0\lib\net46\System.AppContext.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Buffers, Version=4.0.5.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Buffers.4.6.1\lib\net462\System.Buffers.dll</HintPath>
-    </Reference>
-    <Reference Include="System.ComponentModel.Composition" />
-    <Reference Include="System.Console, Version=4.0.1.1, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Console.4.3.1\lib\net46\System.Console.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Core" />
-    <Reference Include="System.Diagnostics.DiagnosticSource, Version=10.0.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Diagnostics.DiagnosticSource.10.0.1\lib\net462\System.Diagnostics.DiagnosticSource.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Formats.Asn1, Version=10.0.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Formats.Asn1.10.0.1\lib\net462\System.Formats.Asn1.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Globalization.Calendars, Version=4.0.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Globalization.Calendars.4.3.0\lib\net46\System.Globalization.Calendars.dll</HintPath>
-    </Reference>
-    <Reference Include="System.IO.Compression, Version=4.1.2.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.IO.Compression.4.3.0\lib\net46\System.IO.Compression.dll</HintPath>
-    </Reference>
-    <Reference Include="System.IO.Compression.FileSystem" />
-    <Reference Include="System.IO.Compression.ZipFile, Version=4.0.2.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.IO.Compression.ZipFile.4.3.0\lib\net46\System.IO.Compression.ZipFile.dll</HintPath>
-    </Reference>
-    <Reference Include="System.IO.FileSystem, Version=4.0.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.IO.FileSystem.4.3.0\lib\net46\System.IO.FileSystem.dll</HintPath>
-    </Reference>
-    <Reference Include="System.IO.FileSystem.Primitives, Version=4.0.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.IO.FileSystem.Primitives.4.3.0\lib\net46\System.IO.FileSystem.Primitives.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Memory, Version=4.0.5.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Memory.4.6.3\lib\net462\System.Memory.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Net" />
-    <Reference Include="System.Net.Http, Version=4.1.1.3, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Net.Http.4.3.4\lib\net46\System.Net.Http.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Net.Http.Formatting, Version=6.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.AspNet.WebApi.Client.6.0.0\lib\net45\System.Net.Http.Formatting.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Net.Sockets, Version=4.1.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Net.Sockets.4.3.0\lib\net46\System.Net.Sockets.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Numerics" />
-    <Reference Include="System.Numerics.Vectors, Version=4.1.6.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Numerics.Vectors.4.6.1\lib\net462\System.Numerics.Vectors.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=6.0.3.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Runtime.CompilerServices.Unsafe.6.1.2\lib\net462\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Runtime.InteropServices.RuntimeInformation, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Runtime.InteropServices.RuntimeInformation.4.3.0\lib\net45\System.Runtime.InteropServices.RuntimeInformation.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Security" />
-    <Reference Include="System.Security.Cryptography.Algorithms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Security.Cryptography.Algorithms.4.3.1\lib\net46\System.Security.Cryptography.Algorithms.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Security.Cryptography.Encoding, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Security.Cryptography.Encoding.4.3.0\lib\net46\System.Security.Cryptography.Encoding.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Security.Cryptography.Pkcs, Version=10.0.0.1, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Security.Cryptography.Pkcs.10.0.1\lib\net462\System.Security.Cryptography.Pkcs.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Security.Cryptography.Primitives, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Security.Cryptography.Primitives.4.3.0\lib\net46\System.Security.Cryptography.Primitives.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Security.Cryptography.X509Certificates, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Security.Cryptography.X509Certificates.4.3.2\lib\net46\System.Security.Cryptography.X509Certificates.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Threading.Tasks.Extensions, Version=4.2.4.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Threading.Tasks.Extensions.4.6.3\lib\net462\System.Threading.Tasks.Extensions.dll</HintPath>
-    </Reference>
-    <Reference Include="System.ValueTuple, Version=4.0.5.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.ValueTuple.4.6.1\lib\net462\System.ValueTuple.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Deployment" />
-    <Reference Include="System.Drawing" />
-    <Reference Include="PresentationCore" />
-    <Reference Include="PresentationFramework" />
-    <Reference Include="System.Windows.Forms" />
-    <Reference Include="System.Xaml" />
-    <Reference Include="WindowsBase" />
-    <Reference Include="System.Xml" />
-    <Reference Include="System.Xml.ReaderWriter, Version=4.1.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
-      <HintPath>..\packages\System.Xml.ReaderWriter.4.3.1\lib\net46\System.Xml.ReaderWriter.dll</HintPath>
-    </Reference>
-  </ItemGroup>
   <ItemGroup>
     <Compile Include="Core.cs" />
-    <Compile Include="Forms\About.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Forms\About.Designer.cs">
-      <DependentUpon>About.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Forms\Main.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Forms\Main.Designer.cs">
-      <DependentUpon>Main.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Forms\WPF\MainLite.xaml.cs">
-      <DependentUpon>MainLite.xaml</DependentUpon>
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Forms\WPF\AboutWindow.xaml.cs">
-      <DependentUpon>AboutWindow.xaml</DependentUpon>
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Forms\WPF\SettingsWindow.xaml.cs">
-      <DependentUpon>SettingsWindow.xaml</DependentUpon>
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Forms\WPF\WizardWindow.xaml.cs">
-      <DependentUpon>WizardWindow.xaml</DependentUpon>
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Forms\WPF\PluginsWindow.xaml.cs">
-      <DependentUpon>PluginsWindow.xaml</DependentUpon>
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Forms\WPF\ServerDatManagerWindow.xaml.cs">
-      <DependentUpon>ServerDatManagerWindow.xaml</DependentUpon>
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Forms\WPF\SetupLicenseWindow.xaml.cs">
-      <DependentUpon>SetupLicenseWindow.xaml</DependentUpon>
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="Forms\Plugins.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Forms\Plugins.Designer.cs">
-      <DependentUpon>Plugins.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Forms\ServerDatManager.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Forms\ServerDatManager.Designer.cs">
-      <DependentUpon>ServerDatManager.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Forms\SetupLicense.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Forms\SetupLicense.Designer.cs">
-      <DependentUpon>SetupLicense.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Forms\Wizard.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Forms\Wizard.Designer.cs">
-      <DependentUpon>Wizard.cs</DependentUpon>
-    </Compile>
+    <Compile Include="Forms\About.cs"><SubType>Form</SubType></Compile>
+    <Compile Include="Forms\About.Designer.cs"><DependentUpon>About.cs</DependentUpon></Compile>
+    <Compile Include="Forms\Main.cs"><SubType>Form</SubType></Compile>
+    <Compile Include="Forms\Main.Designer.cs"><DependentUpon>Main.cs</DependentUpon></Compile>
+    <Compile Include="Forms\WPF\MainLite.xaml.cs"><DependentUpon>MainLite.xaml</DependentUpon><SubType>Code</SubType></Compile>
+    <Compile Include="Forms\WPF\AboutWindow.xaml.cs"><DependentUpon>AboutWindow.xaml</DependentUpon><SubType>Code</SubType></Compile>
+    <Compile Include="Forms\WPF\SettingsWindow.xaml.cs"><DependentUpon>SettingsWindow.xaml</DependentUpon><SubType>Code</SubType></Compile>
+    <Compile Include="Forms\WPF\WizardWindow.xaml.cs"><DependentUpon>WizardWindow.xaml</DependentUpon><SubType>Code</SubType></Compile>
+    <Compile Include="Forms\WPF\PluginsWindow.xaml.cs"><DependentUpon>PluginsWindow.xaml</DependentUpon><SubType>Code</SubType></Compile>
+    <Compile Include="Forms\WPF\ServerDatManagerWindow.xaml.cs"><DependentUpon>ServerDatManagerWindow.xaml</DependentUpon><SubType>Code</SubType></Compile>
+    <Compile Include="Forms\WPF\SetupLicenseWindow.xaml.cs"><DependentUpon>SetupLicenseWindow.xaml</DependentUpon><SubType>Code</SubType></Compile>
+    <Compile Include="Forms\Plugins.cs"><SubType>Form</SubType></Compile>
+    <Compile Include="Forms\Plugins.Designer.cs"><DependentUpon>Plugins.cs</DependentUpon></Compile>
+    <Compile Include="Forms\ServerDatManager.cs"><SubType>Form</SubType></Compile>
+    <Compile Include="Forms\ServerDatManager.Designer.cs"><DependentUpon>ServerDatManager.cs</DependentUpon></Compile>
+    <Compile Include="Forms\SetupLicense.cs"><SubType>Form</SubType></Compile>
+    <Compile Include="Forms\SetupLicense.Designer.cs"><DependentUpon>SetupLicense.cs</DependentUpon></Compile>
+    <Compile Include="Forms\Wizard.cs"><SubType>Form</SubType></Compile>
+    <Compile Include="Forms\Wizard.Designer.cs"><DependentUpon>Wizard.cs</DependentUpon></Compile>
     <Compile Include="Models\ServersDatGenerator.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Forms\Settings.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Forms\Settings.Designer.cs">
-      <DependentUpon>Settings.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Properties\Resources.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>Resources.resx</DependentUpon>
-    </Compile>
-    <EmbeddedResource Include="Forms\About.resx">
-      <DependentUpon>About.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Forms\Main.resx">
-      <DependentUpon>Main.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Forms\Plugins.resx">
-      <DependentUpon>Plugins.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Forms\ServerDatManager.resx">
-      <DependentUpon>ServerDatManager.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Forms\SetupLicense.resx">
-      <DependentUpon>SetupLicense.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Forms\Wizard.resx">
-      <DependentUpon>Wizard.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Forms\Settings.resx">
-      <DependentUpon>Settings.cs</DependentUpon>
-    </EmbeddedResource>
-    <Page Include="Forms\WPF\MainLite.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="Forms\WPF\AboutWindow.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="Forms\WPF\SettingsWindow.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="Forms\WPF\WizardWindow.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="Forms\WPF\PluginsWindow.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="Forms\WPF\ServerDatManagerWindow.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="Forms\WPF\SetupLicenseWindow.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <Page Include="Forms\WPF\SharedTheme.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
-    <EmbeddedResource Include="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <SubType>Designer</SubType>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
-    <None Include="packages.config" />
-    <None Include="Properties\Settings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
-    <Compile Include="Properties\Settings.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Settings.settings</DependentUpon>
-      <DesignTimeSharedInput>True</DesignTimeSharedInput>
-    </Compile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="App.config" />
+    <Compile Include="Forms\Settings.cs"><SubType>Form</SubType></Compile>
+    <Compile Include="Forms\Settings.Designer.cs"><DependentUpon>Settings.cs</DependentUpon></Compile>
+    <Compile Include="Properties\Resources.Designer.cs"><AutoGen>True</AutoGen><DesignTime>True</DesignTime><DependentUpon>Resources.resx</DependentUpon></Compile>
+    <EmbeddedResource Include="Forms\About.resx"><DependentUpon>About.cs</DependentUpon></EmbeddedResource>
+    <EmbeddedResource Include="Forms\Main.resx"><DependentUpon>Main.cs</DependentUpon></EmbeddedResource>
+    <EmbeddedResource Include="Forms\Plugins.resx"><DependentUpon>Plugins.cs</DependentUpon></EmbeddedResource>
+    <EmbeddedResource Include="Forms\ServerDatManager.resx"><DependentUpon>ServerDatManager.cs</DependentUpon></EmbeddedResource>
+    <EmbeddedResource Include="Forms\SetupLicense.resx"><DependentUpon>SetupLicense.cs</DependentUpon></EmbeddedResource>
+    <EmbeddedResource Include="Forms\Wizard.resx"><DependentUpon>Wizard.cs</DependentUpon></EmbeddedResource>
+    <EmbeddedResource Include="Forms\Settings.resx"><DependentUpon>Settings.cs</DependentUpon></EmbeddedResource>
+    <Page Include="Forms\WPF\MainLite.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
+    <Page Include="Forms\WPF\AboutWindow.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
+    <Page Include="Forms\WPF\SettingsWindow.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
+    <Page Include="Forms\WPF\WizardWindow.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
+    <Page Include="Forms\WPF\PluginsWindow.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
+    <Page Include="Forms\WPF\ServerDatManagerWindow.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
+    <Page Include="Forms\WPF\SetupLicenseWindow.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
+    <Page Include="Forms\WPF\SharedTheme.xaml"><Generator>MSBuild:Compile</Generator><SubType>Designer</SubType></Page>
+    <EmbeddedResource Include="Properties\Resources.resx"><Generator>ResXFileCodeGenerator</Generator><SubType>Designer</SubType><LastGenOutput>Resources.Designer.cs</LastGenOutput></EmbeddedResource>
+    <None Include="Properties\Settings.settings"><Generator>SettingsSingleFileGenerator</Generator><LastGenOutput>Settings.Designer.cs</LastGenOutput></None>
+    <Compile Include="Properties\Settings.Designer.cs"><AutoGen>True</AutoGen><DependentUpon>Settings.settings</DependentUpon><DesignTimeSharedInput>True</DesignTimeSharedInput></Compile>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Models\TextTranslation.cs" />
@@ -391,46 +93,16 @@
     <None Include="Resources\ServersXML.xml" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CLCore\CLCore.csproj">
-      <Project>{b3d527df-7ed0-4f05-9119-989b47b09c63}</Project>
-      <Name>CLCore</Name>
-    </ProjectReference>
+    <ProjectReference Include="..\CLCore\CLCore.csproj"><Name>CLCore</Name></ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <BootstrapperPackage Include=".NETFramework,Version=v4.6">
-      <Visible>False</Visible>
-      <ProductName>Microsoft .NET Framework 4.6 %28x86 y x64%29</ProductName>
-      <Install>true</Install>
-    </BootstrapperPackage>
-    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
-      <Visible>False</Visible>
-      <ProductName>.NET Framework 3.5 SP1</ProductName>
-      <Install>false</Install>
-    </BootstrapperPackage>
+    <PackageReference Include="MetroModernUI" Version="1.4.0.0" />
+    <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="6.0.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="Newtonsoft.Json.Bson" Version="1.0.3" />
+    <PackageReference Include="SharpZipLib" Version="1.4.2" />
   </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\WinFX\v3.0\Microsoft.WinFX.targets" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\WinFX\v3.0\Microsoft.WinFX.targets')" />
-  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\WinFX\v3.5\Microsoft.WinFX.targets" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\WinFX\v3.5\Microsoft.WinFX.targets')" />
-  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
-    <PropertyGroup>
-      <ErrorText>Este proyecto hace referencia a los paquetes NuGet que faltan en este equipo. Use la restauración de paquetes NuGet para descargarlos. Para obtener más información, consulte http://go.microsoft.com/fwlink/?LinkID=322105. El archivo que falta es {0}.</ErrorText>
-    </PropertyGroup>
-    <Error Condition="!Exists('..\packages\Costura.Fody.6.0.0\build\Costura.Fody.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Costura.Fody.6.0.0\build\Costura.Fody.props'))" />
-    <Error Condition="!Exists('..\packages\Costura.Fody.6.0.0\build\Costura.Fody.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Costura.Fody.6.0.0\build\Costura.Fody.targets'))" />
-    <Error Condition="!Exists('..\packages\Fody.6.9.3\build\Fody.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Fody.6.9.3\build\Fody.targets'))" />
-  </Target>
-  <Import Project="..\packages\Costura.Fody.6.0.0\build\Costura.Fody.targets" Condition="Exists('..\packages\Costura.Fody.6.0.0\build\Costura.Fody.targets')" />
-  <Import Project="..\packages\Fody.6.9.3\build\Fody.targets" Condition="Exists('..\packages\Fody.6.9.3\build\Fody.targets')" />
-  <PropertyGroup>
-    <ClientInstallDirectory Condition="'$(ClientInstallDirectory)' == ''">$(MSBuildProjectDirectory)\..\..\..\6300</ClientInstallDirectory>
-  </PropertyGroup>
-  <Target Name="CopyBuiltLoaderToClientInstall" AfterTargets="Build" Condition="Exists('$(ClientInstallDirectory)')">
-    <Copy SourceFiles="$(TargetPath)" DestinationFiles="$(ClientInstallDirectory)\EternalAbyss.exe" />
-    <Message Importance="High" Text="Copied $(TargetPath) to $(ClientInstallDirectory)\EternalAbyss.exe" />
-  </Target>  <PropertyGroup>
-    <ClientInstallDirectory Condition="'$(ClientInstallDirectory)' == ''">$(MSBuildProjectDirectory)\..\..\..\6300</ClientInstallDirectory>
-  </PropertyGroup>
-  <Target Name="CopyBuiltLoaderToClientInstall" AfterTargets="Build" Condition="Exists('$(ClientInstallDirectory)')">
-    <Copy SourceFiles="$(TargetPath)" DestinationFiles="$(ClientInstallDirectory)\EternalAbyss.exe" />
-    <Message Importance="High" Text="Copied $(TargetPath) to $(ClientInstallDirectory)\EternalAbyss.exe" />
-  </Target></Project>
+  <ItemGroup><None Include="App.config" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+  <ItemGroup><Compile Include="..\WindowsPlatform.cs" Link="Properties\WindowsPlatform.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="RuntimeSmoke.cs" /></ItemGroup>
+</Project>

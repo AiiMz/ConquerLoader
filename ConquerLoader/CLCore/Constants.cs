@@ -6,6 +6,9 @@ namespace CLCore
 	{
 		//The folder name which contains the plugin DLLs
 		public const string PluginsFolderName = "Plugins";
+        // Framework launchers only scan Plugins. Runtime-specific replacements
+        // live outside it so a failed launcher self-update cannot load newer IL.
+        public const string RuntimePluginsFolderName = "Runtime10";
 		public static string LicenseKey = null;
 		public static string ClientPath = null;
 		public static System.ComponentModel.BackgroundWorker MainWorker = null;

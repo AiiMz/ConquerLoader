@@ -25,9 +25,8 @@
   -->
 
   <PropertyGroup>
-    <!-- net48 rather than net8.0: the assembly under test is a .NET Framework
-         class library, and a portable test host cannot load it. -->
-    <TargetFramework>net48</TargetFramework>
+    <!-- Exercise the same .NET 10 Windows library shipped in the launcher. -->
+    <TargetFramework>net10.0-windows</TargetFramework>
     <AssemblyName>CLCore.Tests</AssemblyName>
     <RootNamespace>CLCore.Tests</RootNamespace>
     <IsPackable>false</IsPackable>

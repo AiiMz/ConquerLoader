@@ -1,19 +1,5 @@
-# Builds the loader and runs the tests for CLCore\Patching.
-#
-# This fork's whole reason to exist is that the shipped launcher updates the
-# client before starting it, and the exe players run should come out of a
-# workflow rather than off whichever laptop built it last. See FORK.md.
-#
-# That exe is EternalAbyss.exe since the rename; ConquerLoader.exe is the same
-# build published a second time under the old name, so that shortcuts made
-# before the rename still work. Both come from this one artifact.
-#
-# ConquerLoader.csproj is what ships. ConquerCipherHook.vcxproj is built too but
-# nothing is shipped from it here: the loader carries that hook as an embedded
-# resource, so the DLL a player gets is the one committed under
-# ConquerLoader\Resources. Building it only proves the source that produced it
-# still compiles, which is the part that would otherwise rot unnoticed.
-# ConquerHook and CLServer this fork does not touch.
+# .NET 10 launcher: native injection remains Win32; managed delivery is one
+# self-contained bundle so players do not need to install a separate runtime.
 name: build
 
 on:
@@ -25,103 +11,48 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-
     steps:
       - uses: actions/checkout@v4
-
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
       - uses: microsoft/setup-msbuild@v2
-
-      # packages.config, not PackageReference, so this is not `dotnet restore`.
-      # RestorePackagesConfig plus an explicit SolutionDir is what NuGet.targets
-      # needs when it is pointed at a project rather than a solution.
-      - name: Restore
-        run: >
-          msbuild ConquerLoader\ConquerLoader\ConquerLoader.csproj
-          -t:Restore -p:RestorePackagesConfig=true
-          -p:SolutionDir=${{ github.workspace }}\ConquerLoader\
-          -v:minimal -nologo
-
-      - name: Build
-        run: >
-          msbuild ConquerLoader\ConquerLoader\ConquerLoader.csproj
-          -t:Build -p:Configuration=Release
-          -p:SolutionDir=${{ github.workspace }}\ConquerLoader\
-          -v:minimal -nologo
-
-      # The frame limiter lives in here, and nothing else in this workflow would
-      # notice if it stopped compiling - the loader builds perfectly well against
-      # the DLL already committed as a resource. Win32 because the client is
-      # 32-bit, and Restore because Detours arrives through packages.config.
-      #
-      # RESTORE AND BUILD ARE TWO INVOCATIONS, exactly as the loader's own steps
-      # above are, and combining them is not a tidier way to write the same
-      # thing. `-t:Restore;Build` evaluates the project ONCE, before Restore has
-      # run, so the conditional import of
-      #     ..\ConquerLoader\packages\Detours.4.0.1\build\native\Detours.targets
-      # is skipped - the file does not exist yet - and the build then runs
-      # without the include path that import contributes.
-      #
-      # It fails as `error C1083: Cannot open include file: 'detours.h'`, which
-      # names neither NuGet nor the import and sends you looking at the compiler.
-      # The project HAS a guard meant to produce a readable error for exactly
-      # this, EnsureNuGetPackageBuildImports, and it cannot fire: its Exists()
-      # check runs at target time, by which point Restore has created the file
-      # it is looking for. The guard passes and the build proceeds without the
-      # import it was guarding.
-      #
-      # It only ever fails on a clean checkout, which is why it was invisible
-      # locally - a developer machine has the package from a previous build, so
-      # the import is there at evaluation time and the combined form works. This
-      # step was added in be839db and failed on every run until it was split.
-      - name: Restore the cipher hook
-        run: >
-          msbuild ConquerCipherHook\ConquerCipherHook.vcxproj
-          -t:Restore -p:RestorePackagesConfig=true
-          -p:Configuration=Release -p:Platform=Win32
-          -p:SolutionDir=${{ github.workspace }}\ConquerLoader\
-          -v:minimal -nologo
-
-      - name: Build the cipher hook
-        run: >
-          msbuild ConquerCipherHook\ConquerCipherHook.vcxproj
-          -t:Build
-          -p:Configuration=Release -p:Platform=Win32
-          -p:SolutionDir=${{ github.workspace }}\ConquerLoader\
-          -v:minimal -nologo
-
-      # The path guard is the only place where a string from the network becomes
-      # a location on a player's disk, and there is no second line of defence
-      # behind it. It has already caught one real .NET Framework behaviour
-      # difference that the same code did not have on .NET 8.
-      - name: Test
-        run: dotnet test ConquerLoader\Tests\CLCore.Tests\CLCore.Tests.csproj -c Debug --nologo
-
-      # Costura packs every dependency into the one file. A build that produced
-      # a small exe would be one whose weaving silently did not run, and it would
-      # fail on a player's machine rather than here.
-      #
-      # THE NAME IS PART OF THE CHECK. The file is EternalAbyss.exe because the
-      # csproj sets TargetName while the assembly stays ConquerLoader - a split
-      # that exists to keep the WPF pack URIs working, and one that a later edit
-      # to AssemblyName would silently undo. The old name is asserted absent
-      # rather than merely not looked for: a build that produced ConquerLoader
-      # .exe would be published as the loader under a path nothing serves.
-      - name: Check the exe is packed
+      - name: Build the embedded native cipher hook
         shell: pwsh
         run: |
-          $exe = "ConquerLoader\Release\EternalAbyss.exe"
-          if (-not (Test-Path $exe)) { throw "No EternalAbyss.exe was produced." }
-          if (Test-Path "ConquerLoader\Release\ConquerLoader.exe") {
-            throw "The build produced ConquerLoader.exe - TargetName is not taking effect."
+          $vswhere = "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
+          $vs = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $toolset = Get-ChildItem "$vs/MSBuild/Microsoft/VC/*/Platforms/Win32/PlatformToolsets/v*/Toolset.props" |
+            Sort-Object { [int]$_.Directory.Name.Substring(1) } -Descending | Select-Object -First 1
+          if (-not $toolset) { throw 'No installed Win32 Visual C++ toolset.' }
+          $arguments = @('-p:Configuration=Release', '-p:Platform=Win32', "-p:PlatformToolset=$($toolset.Directory.Name)", "-p:SolutionDir=$pwd/ConquerLoader/")
+          msbuild ConquerCipherHook/ConquerCipherHook.vcxproj -t:Restore -p:RestorePackagesConfig=true @arguments -nologo
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          msbuild ConquerCipherHook/ConquerCipherHook.vcxproj -t:Rebuild @arguments -nologo
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Build all managed projects
+        shell: pwsh
+        run: |
+          foreach ($project in @('ConquerLoader','CLServer','ExamplePlugin','CLAutoPatchPlugin')) {
+            dotnet build "ConquerLoader/$project/$project.csproj" -c Release --nologo
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
           }
-          $mb = [math]::Round((Get-Item $exe).Length / 1MB, 1)
-          if ($mb -lt 30) { throw "EternalAbyss.exe is only $mb MB - Costura did not pack it." }
-          Write-Host "EternalAbyss.exe OK: $mb MB"
-
+      - name: Test launcher behavior
+        run: dotnet test ConquerLoader/Tests/CLCore.Tests/CLCore.Tests.csproj -c Release --nologo
+      - name: Publish self-contained x86 launcher
+        run: dotnet publish ConquerLoader/ConquerLoader/ConquerLoader.csproj -c Release -r win-x86 --self-contained true -o artifact --nologo
+      - name: Verify bundled runtime
+        shell: pwsh
+        run: |
+          $runtime = Get-Content ConquerLoader/ConquerLoader/bin/Release/net10.0-windows/win-x86/EternalAbyss.runtimeconfig.json -Raw | ConvertFrom-Json
+          if ($runtime.runtimeOptions.tfm -ne 'net10.0' -or -not @($runtime.runtimeOptions.includedFrameworks | Where-Object {
+              $_.name -eq 'Microsoft.NETCore.App' -and $_.version -like '10.*'
+          }).Count) { throw 'Expected a self-contained .NET 10 launcher.' }
+          if (-not (Test-Path artifact/EternalAbyss.exe)) { throw 'No bundled launcher.' }
       - uses: actions/upload-artifact@v4
         with:
           name: EternalAbyss-loader-${{ github.sha }}
-          path: ConquerLoader/Release/EternalAbyss.exe
+          path: artifact/EternalAbyss.exe
           retention-days: 14
 
   # Keep the artifact store under the free tier's 500 MB, the same way

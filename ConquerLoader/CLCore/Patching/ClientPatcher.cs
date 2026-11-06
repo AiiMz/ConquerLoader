@@ -420,7 +420,8 @@ namespace CLCore.Patching
             string path = manifestPath.Replace('\\', '/').TrimStart('/');
             string prefix = Constants.PluginsFolderName + "/";
 
-            return path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            return (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith(Constants.RuntimePluginsFolderName + "/", StringComparison.OrdinalIgnoreCase))
                 && path.EndsWith(".dll", StringComparison.OrdinalIgnoreCase);
         }
 

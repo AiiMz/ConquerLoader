@@ -1,70 +1,24 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{2828D538-96AF-45EC-90FD-22555B20381B}</ProjectGuid>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>ExamplePlugin</RootNamespace>
     <AssemblyName>ExamplePlugin</AssemblyName>
-    <!-- v4.8, not upstream's v4.6.2. The 4.6.2 targeting pack is not installed
-         by Visual Studio 2022 by default and is not on the GitHub Windows runner
-         images, so a v4.6.2 build needs a developer pack nobody thinks to
-         install and fails with MSB3644 when they have not. 4.8 ships in-box on
-         every Windows 10 1903 and later, which is the whole population that can
-         run this client. -->
-    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <Deterministic>true</Deterministic>
-    <TargetFrameworkProfile />
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <EnableDefaultPageItems>false</EnableDefaultPageItems>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>7.3</LangVersion>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <PlatformTarget>x86</PlatformTarget>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Windows.Forms" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Net.Http" />
-    <Reference Include="System.Xml" />
-  </ItemGroup>
   <ItemGroup>
     <Compile Include="ExamplePlugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\ConquerLoader\ConquerLoader.csproj">
-      <Project>{af23285a-b4cd-46b1-962d-0cd66a55482b}</Project>
-      <Name>ConquerLoader</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\CLCore\CLCore.csproj">
-      <Project>{B3D527DF-7ED0-4F05-9119-989B47B09C63}</Project>
-      <Name>CLCore</Name>
-    </ProjectReference>
+    <ProjectReference Include="..\ConquerLoader\ConquerLoader.csproj"><Name>ConquerLoader</Name></ProjectReference>
+    <ProjectReference Include="..\CLCore\CLCore.csproj"><Name>CLCore</Name></ProjectReference>
   </ItemGroup>
-  <ItemGroup>
-    <None Include="app.config" />
-  </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <ItemGroup><Compile Include="..\WindowsPlatform.cs" Link="Properties\WindowsPlatform.cs" /></ItemGroup>
 </Project>

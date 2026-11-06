@@ -11,15 +11,17 @@ namespace ConquerLoader
         /// Punto de entrada principal para la aplicacion.
         /// </summary>
         [STAThread]
-        static void Main()
+        static int Main(string[] args)
         {
-            if (HandedOffToNewName()) return;
+            if (args.Length == 2 && args[0] == "--runtime-selftest")
+                return RuntimeSmoke.Run(System.IO.Path.GetFullPath(args[1]));
+            if (HandedOffToNewName()) return 0;
 
             System.Windows.Forms.Application.EnableVisualStyles();
             System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
             Application app = new Application();
             app.ShutdownMode = ShutdownMode.OnMainWindowClose;
-            app.Run(new MainLite());
+            return app.Run(new MainLite());
         }
 
         /// <summary>
