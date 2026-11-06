@@ -11,14 +11,21 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: 'pwsh -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{0}"'
     steps:
       - uses: actions/checkout@v4
+      - name: Provision PowerShell on .NET 10
+        shell: powershell
+        run: |
+          $ciPowerShell = ./.github/scripts/Install-CiPowerShell.ps1
+          Split-Path $ciPowerShell -Parent | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
       - uses: microsoft/setup-msbuild@v2
       - name: Build the embedded native cipher hook
-        shell: pwsh
         run: |
           $vswhere = "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
           $vs = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
@@ -31,7 +38,6 @@ jobs:
           msbuild ConquerCipherHook/ConquerCipherHook.vcxproj -t:Rebuild @arguments -nologo
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Build all managed projects
-        shell: pwsh
         run: |
           foreach ($project in @('ConquerLoader','CLServer','ExamplePlugin','CLAutoPatchPlugin')) {
             dotnet build "ConquerLoader/$project/$project.csproj" -c Release --nologo
@@ -42,7 +48,6 @@ jobs:
       - name: Publish self-contained x86 launcher
         run: dotnet publish ConquerLoader/ConquerLoader/ConquerLoader.csproj -c Release -r win-x86 --self-contained true -o artifact --nologo
       - name: Verify bundled runtime
-        shell: pwsh
         run: |
           $runtime = Get-Content ConquerLoader/ConquerLoader/bin/Release/net10.0-windows/win-x86/EternalAbyss.runtimeconfig.json -Raw | ConvertFrom-Json
           if ($runtime.runtimeOptions.tfm -ne 'net10.0' -or -not @($runtime.runtimeOptions.includedFrameworks | Where-Object {
