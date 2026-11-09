@@ -52,6 +52,15 @@ namespace CLCore.Tests.Patching
             return ClientPatcher.Run(_root, _server.BaseUrl, TimeSpan.FromSeconds(10), _log.Add, null, Image);
         }
 
+        [Fact]
+        public void A_server_can_stop_immediately_without_receiving_a_request()
+        {
+            // The path-only tests also start this fixture, then tear it down
+            // without a request. Exercise that startup/shutdown race repeatedly.
+            for (int i = 0; i < 100; i++)
+                using (var server = new TinyServer()) { }
+        }
+
         [Theory]
         [InlineData("Plugins/GarmentMotionPlugin.dll", true)]
         [InlineData("Runtime10/GarmentMotionPlugin.dll", true)]
@@ -283,6 +292,9 @@ namespace CLCore.Tests.Patching
                     try { client = _listener.AcceptTcpClient(); }
                     catch (SocketException) { return; }
                     catch (ObjectDisposedException) { return; }
+                    // Stop can run after the loop check but before Accept starts.
+                    // TcpListener then reports "not listening" rather than a socket error.
+                    catch (InvalidOperationException) when (_stopped) { return; }
 
                     try
                     {
@@ -320,6 +332,8 @@ namespace CLCore.Tests.Patching
             {
                 _stopped = true;
                 _listener.Stop();
+                if (!_thread.Join(TimeSpan.FromSeconds(5)))
+                    throw new TimeoutException("The patch test server did not stop.");
             }
         }
     }
