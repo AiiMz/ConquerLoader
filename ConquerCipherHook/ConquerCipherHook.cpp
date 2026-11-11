@@ -97,8 +97,34 @@ int __stdcall csv3_send(SOCKET s, PBYTE buf, int len, int flags)
 	typedef int (__stdcall *LPFSEND)(SOCKET,PBYTE,int,int);
 	return ((LPFSEND)send_stub.Address)(s,buf,len,flags);
 }
+/**
+* One sign-out page per group of clients, not one per client.
+*
+* Every client opens the sign-out page as it closes, so closing three clients
+* opened three tabs. Each client maps the same small named section at startup;
+* the first one to sign out flips the flag in it and opens the page, and every
+* later one skips. The section lives as long as any client holds it, so the
+* flag resets by itself once the last client has exited - the next session of
+* clients gets its one page again. It is mapped at init rather than at exit
+* because a client that created it on its way out would destroy it with itself.
+* A crashed client needs no cleanup: the OS closes its handle.
+*/
+static volatile LONG* signout_flag = NULL;
+
+static void signout_flag_init()
+{
+	HANDLE hMap = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, sizeof(LONG),
+		"Local\\EternalAbyss.SignoutPageOpened");
+	if (hMap == NULL)
+		return; // no flag means the old behaviour: every client opens the page
+	signout_flag = (volatile LONG*)MapViewOfFile(hMap, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(LONG));
+	// the handle is deliberately kept open for the life of the process
+}
+
 int __stdcall Shellexec(HWND hWnd, CHAR* lpOperation, CHAR* lpFile, CHAR* lpParams, CHAR* lpDir, INT nCmd) {
-	if (strcmp("http://co.99.com/signout/", lpFile) == 0) {
+	if (lpFile != NULL && strcmp("http://co.99.com/signout/", lpFile) == 0) {
+		if (signout_flag != NULL && InterlockedCompareExchange(signout_flag, 1, 0) != 0)
+			return 42; // another client already opened it; > 32 is ShellExecute's success
 		lpFile = "https://eternalabyssco.com";
 	}
 	typedef INT(__stdcall* Shellexec)(HWND, CHAR*, CHAR*, CHAR*, CHAR*, INT);
@@ -178,6 +204,7 @@ void csv3_init(HMODULE hModule)
 	//flash.Hook();
 	FpsLimiter_Install(read_ini_int("MAX_FPS", 0), read_ini_int("FPS_DEBUG", 0) != 0);
 	memset(szPassword, 0, 32);
+	signout_flag_init();
 	CreateHook32(lib_func("msvcr90.dll", "_snprintf"), csv3_snprintf, &snprintf_stub);
 	CreateHook32(lib_func("ws2_32.dll", "send"), csv3_send, &send_stub);
 	CreateHook32(lib_func("ws2_32.dll", "connect"), csv3_connect, &connect_stub);
