@@ -24,6 +24,7 @@
     <Compile Include="Models\ServerConfiguration.cs" />
     <Compile Include="Models\ServerDatGroup.cs" />
     <Compile Include="ClientOptions\FrameRateLimit.cs" />
+    <Compile Include="ClientOptions\ScreenResolution.cs" />
     <Compile Include="ClientOptions\WingVisibility.cs" />
     <Compile Include="Patching\ClientPatcher.cs" />
     <Compile Include="Patching\ClientPaths.cs" />

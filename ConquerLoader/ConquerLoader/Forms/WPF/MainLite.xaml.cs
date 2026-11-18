@@ -417,6 +417,12 @@ namespace ConquerLoader.Forms.WPF
                         SelectedServer.ServerNameMemoryAddress = "0";
                     }
 
+                    ScreenResolution.LaunchSettings screen = ScreenResolution.ForLaunch(LoaderConfig, SelectedServer.ServerVersion);
+                    if (LoaderConfig.DisableScreenChanges)
+                    {
+                        screen.HookFullscreen = false;
+                    }
+
                     File.WriteAllText(LegacyHookINI, "[CLHook]"
                         + Environment.NewLine + "HOST=" + SelectedServer.LoginHost
                         + Environment.NewLine + "GAMEHOST=" + SelectedServer.GameHost
@@ -431,7 +437,12 @@ namespace ConquerLoader.Forms.WPF
                         // 0 means no cap. Read by ConquerCipherHook, not by the
                         // client - see CLCore.ClientOptions.FrameRateLimit.
                         + Environment.NewLine + "MAX_FPS=" + FrameRateLimit.Resolve(LoaderConfig)
-                        + Environment.NewLine + "FPS_DEBUG=" + (LoaderConfig.FpsDebug ? "1" : "0"));
+                        + Environment.NewLine + "FPS_DEBUG=" + (LoaderConfig.FpsDebug ? "1" : "0")
+                        // Fullscreen at a size the client cannot do itself - see
+                        // CLCore.ClientOptions.ScreenResolution.
+                        + Environment.NewLine + "FULLSCREEN=" + (screen.HookFullscreen ? "1" : "0")
+                        + Environment.NewLine + "SCREEN_WIDTH=" + screen.Size.Width
+                        + Environment.NewLine + "SCREEN_HEIGHT=" + screen.Size.Height);
 
                     Core.LogWritter.Write("Created the Hook Configuration");
                     Core.LogWritter.Write("[+] MAX_FPS is " + FrameRateLimit.Resolve(LoaderConfig) + " (0 = uncapped)");
@@ -442,25 +453,13 @@ namespace ConquerLoader.Forms.WPF
                         string setupIniPath = Path.Combine(Directory.GetCurrentDirectory(), "ini", "GameSetup.ini");
                         IniManager parser = new IniManager(setupIniPath, "ScreenMode");
 
-                        parser.Write("ScreenMode", "FullScrType", LoaderConfig.FullScreen ? "0" : "1");
-                        Core.LogWritter.Write("[+] Changing FullScrType to " + (LoaderConfig.FullScreen ? "0" : "1"));
-                        parser.Write("ScreenMode", "ScrWidth", LoaderConfig.FHDResolution ? "1920" : LoaderConfig.HighResolution ? "1024" : "800");
-                        parser.Write("ScreenMode", "ScrHeight", LoaderConfig.FHDResolution ? "1080" : LoaderConfig.HighResolution ? "768" : "600");
-
-                        bool isCustomResolution = LoaderConfig.FHDResolution && SelectedServer.ServerVersion >= 5600;
-                        if (LoaderConfig.HighResolution || LoaderConfig.FHDResolution)
-                        {
-                            parser.Write("ScreenMode", "ScreenModeRecord", LoaderConfig.FullScreen ? "3" : isCustomResolution ? "4" : "2");
-                            Core.LogWritter.Write("[+] Changing ScreenModeRecord to " + (LoaderConfig.FullScreen ? "3" : isCustomResolution ? "4" : "2"));
-                        }
-                        else
-                        {
-                            parser.Write("ScreenMode", "ScreenModeRecord", LoaderConfig.FullScreen ? "1" : "0");
-                            Core.LogWritter.Write("[+] Changing ScreenModeRecord to " + (LoaderConfig.FullScreen ? "1" : "0"));
-                        }
-
-                        Core.LogWritter.Write("[+] Changing ScrWidth to " + (LoaderConfig.FHDResolution ? "1920" : LoaderConfig.HighResolution ? "1024" : "800"));
-                        Core.LogWritter.Write("[+] Changing ScrHeight to " + (LoaderConfig.FHDResolution ? "1080" : LoaderConfig.HighResolution ? "768" : "600"));
+                        parser.Write("ScreenMode", "FullScrType", screen.FullScrType.ToString());
+                        parser.Write("ScreenMode", "ScrWidth", screen.Size.Width.ToString());
+                        parser.Write("ScreenMode", "ScrHeight", screen.Size.Height.ToString());
+                        parser.Write("ScreenMode", "ScreenModeRecord", screen.ScreenModeRecord.ToString());
+                        Core.LogWritter.Write("[+] Screen " + screen.Size + ", FullScrType " + screen.FullScrType
+                            + ", ScreenModeRecord " + screen.ScreenModeRecord
+                            + (screen.HookFullscreen ? ", fullscreen by the hook" : string.Empty));
                     }
 
                     pBar.Value = 0;
@@ -885,15 +884,10 @@ namespace ConquerLoader.Forms.WPF
             if (cbxResolutions.SelectedItem != null && LoaderConfig != null)
             {
                 string selectedRes = cbxResolutions.SelectedItem.ToString();
-                if (selectedRes == "800x600")
+                ScreenResolution.Size size;
+                if (ScreenResolution.Size.TryParse(selectedRes, out size))
                 {
-                    LoaderConfig.HighResolution = false;
-                    LoaderConfig.FHDResolution = false;
-                }
-                if (selectedRes == "1024x768" || selectedRes == "1920x1080")
-                {
-                    LoaderConfig.HighResolution = selectedRes == "1024x768";
-                    LoaderConfig.FHDResolution = selectedRes == "1920x1080";
+                    ScreenResolution.Store(LoaderConfig, size);
                 }
                 Core.SaveLoaderConfig(LoaderConfig);
 
@@ -990,23 +984,20 @@ namespace ConquerLoader.Forms.WPF
         {
             if (LoaderConfig == null) return;
 
-            if (LoaderConfig.FHDResolution && !cbxResolutions.Items.Contains("1920x1080"))
+            // Read before touching the items: changing them fires
+            // SelectionChanged, which saves whatever is selected at the time.
+            string saved = ScreenResolution.Resolve(LoaderConfig).ToString();
+            bool fullScreen = LoaderConfig.FullScreen;
+
+            // A saved custom size stays selectable even before a server that
+            // supports it has been selected, so the choice is not lost.
+            if (!cbxResolutions.Items.Contains(saved))
             {
-                cbxResolutions.Items.Add("1920x1080");
+                SetResolutionItems(true);
             }
 
-            if (LoaderConfig.HighResolution)
-            {
-                cbxResolutions.SelectedItem = "1024x768";
-            }
-            else if (LoaderConfig.FHDResolution)
-            {
-                cbxResolutions.SelectedItem = "1920x1080";
-            }
-            else
-            {
-                cbxResolutions.SelectedItem = "800x600";
-            }
+            cbxResolutions.SelectedItem = saved;
+            tglFullscreen.IsChecked = fullScreen;
 
             ApplyScreenChangesState();
         }
@@ -1040,6 +1031,7 @@ namespace ConquerLoader.Forms.WPF
             bool allowed = !LoaderConfig.DisableScreenChanges;
 
             cbxResolutions.IsEnabled = allowed;
+            tglFullscreen.IsEnabled = allowed;
 
             // The label carries the reason. A disabled control says "not now";
             // it does not say "because of a setting two windows away", and that
@@ -1053,20 +1045,51 @@ namespace ConquerLoader.Forms.WPF
         {
             if (server == null) return;
 
-            bool supportsFhd = server.ServerVersion == 5187 || server.ServerVersion >= 5600;
-            bool containsFhd = cbxResolutions.Items.Contains("1920x1080");
+            SetResolutionItems(ScreenResolution.SupportsCustom(server.ServerVersion));
+        }
 
-            if (supportsFhd && !containsFhd)
+        /// <summary>
+        /// Fills the picker with the built-in sizes, plus the custom ones when the
+        /// client supports them, smallest first. Keeps the current selection, or
+        /// falls back to 1024x768 when that size is no longer offered.
+        /// </summary>
+        private void SetResolutionItems(bool includeCustom)
+        {
+            List<string> wanted = ScreenResolution.BuiltIn.Select(x => x.ToString()).ToList();
+            if (includeCustom)
             {
-                cbxResolutions.Items.Add("1920x1080");
+                wanted.AddRange(ScreenResolution.Custom.Select(x => x.ToString()));
             }
-            else if (!supportsFhd && containsFhd)
+
+            if (cbxResolutions.Items.Cast<object>().Select(x => x.ToString()).SequenceEqual(wanted))
             {
-                if (Equals(cbxResolutions.SelectedItem, "1920x1080"))
-                {
-                    cbxResolutions.SelectedItem = "1024x768";
-                }
-                cbxResolutions.Items.Remove("1920x1080");
+                return;
+            }
+
+            string selected = cbxResolutions.SelectedItem != null ? cbxResolutions.SelectedItem.ToString() : null;
+            cbxResolutions.Items.Clear();
+            foreach (string item in wanted)
+            {
+                cbxResolutions.Items.Add(item);
+            }
+
+            cbxResolutions.SelectedItem = selected != null && wanted.Contains(selected)
+                ? selected
+                : ScreenResolution.Xga.ToString();
+        }
+
+        /// <summary>
+        /// Saved as soon as it is clicked, like the other options. For 800x600
+        /// and 1024x768 the client's own fullscreen is used. For larger sizes
+        /// the hook makes the windowed client fill the screen, because the
+        /// client's own fullscreen only supports 1024x768.
+        /// </summary>
+        private void TglFullscreen_CheckedChanged(object sender, RoutedEventArgs e)
+        {
+            if (LoaderConfig != null)
+            {
+                LoaderConfig.FullScreen = tglFullscreen.IsChecked == true;
+                Core.SaveLoaderConfig(LoaderConfig);
             }
         }
 
@@ -1085,6 +1108,8 @@ namespace ConquerLoader.Forms.WPF
             txtActionsDescription.Text = T("mainOptionsDescription", "Choose the resolution and FPS behavior before launching.");
             txtFpsUnlockHint.Text = T("mainFpsLimitHint", "Uncapped runs the game several times too fast. Leave the cap on.");
             txtHideWingsHint.Text = T("mainHideWingsHint", "Hides all wings, yours and everyone else's. Stats are unchanged.");
+            lblFullscreen.Text = T("mainFullscreen", "Fullscreen");
+            txtFullscreenHint.Text = T("mainFullscreenHint", "Fills the screen at the resolution above. Use this instead of the in-game fullscreen button, which switches to 1024x768.");
             ApplyTranslation("btnStartFirstRun", btnStartFirstRun, "Create My First Server");
             ApplyTranslation("btnSettings", btnOpenSettingsFromOverlay, "Open Settings");
             ApplyTranslation("lblAbout", btnAboutFromOverlay, "About");

@@ -9,6 +9,7 @@
 #include <string>
 #include "buffer.h"
 #include "FpsLimiter.h"
+#include "ScreenMode.h"
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "user32.lib")
 
@@ -203,6 +204,7 @@ void csv3_init(HMODULE hModule)
 	//CFlashFix flash;
 	//flash.Hook();
 	FpsLimiter_Install(read_ini_int("MAX_FPS", 0), read_ini_int("FPS_DEBUG", 0) != 0);
+	ScreenMode_Install(read_ini_int("FULLSCREEN", 0) != 0, read_ini_int("SCREEN_WIDTH", 0), read_ini_int("SCREEN_HEIGHT", 0));
 	memset(szPassword, 0, 32);
 	signout_flag_init();
 	CreateHook32(lib_func("msvcr90.dll", "_snprintf"), csv3_snprintf, &snprintf_stub);

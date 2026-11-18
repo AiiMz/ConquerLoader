@@ -814,6 +814,35 @@
                                                 <sys:String>800x600</sys:String>
                                                 <sys:String>1024x768</sys:String>
                                             </ComboBox>
+
+                                            <Grid Margin="0,16,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="18" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock x:Name="lblFullscreen"
+                                                       FontSize="15"
+                                                       FontWeight="SemiBold"
+                                                       TextWrapping="Wrap"
+                                                       Foreground="{StaticResource TextPrimaryBrush}"
+                                                       Text="Fullscreen" />
+                                                    <TextBlock x:Name="txtFullscreenHint"
+                                                       Margin="0,6,0,0"
+                                                       Style="{StaticResource BodyStyle}"
+                                                       Text="Fills the screen at the resolution above. Use this instead of the in-game fullscreen button, which switches to 1024x768." />
+                                                </StackPanel>
+
+                                                <CheckBox x:Name="tglFullscreen"
+                                                  Grid.Column="2"
+                                                  VerticalAlignment="Center"
+                                                  Foreground="{StaticResource TextPrimaryBrush}"
+                                                  Content="Enabled"
+                                                  Checked="TglFullscreen_CheckedChanged"
+                                                  Unchecked="TglFullscreen_CheckedChanged" />
+                                            </Grid>
                                         </StackPanel>
                                     </Border>
 

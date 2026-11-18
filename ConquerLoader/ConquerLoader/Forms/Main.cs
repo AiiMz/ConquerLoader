@@ -51,18 +51,7 @@ namespace ConquerLoader.Forms
             if (LoaderConfig != null) {
                 Constants.CloseOnFinish = LoaderConfig.CloseOnFinish;
                 CustomDLLs = LoaderConfig.UseCustomDLLs;
-                if (LoaderConfig.HighResolution)
-                {
-                    cbxResolutions.Text = "1024x768";
-                }
-                else if (LoaderConfig.FHDResolution)
-                {
-                    cbxResolutions.Text = "1920x1080";
-                }
-                else
-                {
-                    cbxResolutions.Text = "800x600";
-                }
+                cbxResolutions.Text = ScreenResolution.Resolve(LoaderConfig).ToString();
             }
             Constants.MainWorker = worker;
             Core.LoadAvailablePlugins();
@@ -234,11 +223,11 @@ namespace ConquerLoader.Forms
                     {
                         if (LoaderConfig.DefaultServer.ServerVersion == 5187 || LoaderConfig.DefaultServer.ServerVersion >= 5600)
                         {
-                            if (!cbxResolutions.Items.Contains("1920x1080")) cbxResolutions.Items.Add("1920x1080");
+                            foreach (var custom in ScreenResolution.Custom) if (!cbxResolutions.Items.Contains(custom.ToString())) cbxResolutions.Items.Add(custom.ToString());
                         }
                         else if (LoaderConfig.DefaultServer.ServerVersion < 5600)
                         {
-                            if (cbxResolutions.Items.Contains("1920x1080")) cbxResolutions.Items.Remove("1920x1080");
+                            foreach (var custom in ScreenResolution.Custom) cbxResolutions.Items.Remove(custom.ToString());
                         }
                         if (SelectDefault)
                         {
@@ -332,6 +321,11 @@ namespace ConquerLoader.Forms
                     {
                         SelectedServer.ServerNameMemoryAddress = "0";
                     }
+                    ScreenResolution.LaunchSettings screen = ScreenResolution.ForLaunch(LoaderConfig, SelectedServer.ServerVersion);
+                    if (LoaderConfig.DisableScreenChanges)
+                    {
+                        screen.HookFullscreen = false;
+                    }
                     // Create first the config used by DLL
                     File.WriteAllText(LegacyHookINI, "[CLHook]"
                         + Environment.NewLine + "HOST=" + SelectedServer.LoginHost
@@ -346,6 +340,9 @@ namespace ConquerLoader.Forms
                         + Environment.NewLine + "DISABLE_AUTOFIX_FLASH=" + (LoaderConfig.DisableAutoFixFlash ? "1" : "0")
                         + Environment.NewLine + "MAX_FPS=" + FrameRateLimit.Resolve(LoaderConfig)
                         + Environment.NewLine + "FPS_DEBUG=" + (LoaderConfig.FpsDebug ? "1" : "0")
+                        + Environment.NewLine + "FULLSCREEN=" + (screen.HookFullscreen ? "1" : "0")
+                        + Environment.NewLine + "SCREEN_WIDTH=" + screen.Size.Width
+                        + Environment.NewLine + "SCREEN_HEIGHT=" + screen.Size.Height
                         );
                     Core.LogWritter.Write("Created the Hook Configuration");
                     // Modify Setup of client
@@ -365,23 +362,11 @@ namespace ConquerLoader.Forms
                          *  1 = Windowed
                          *  0 = FullScreen
                         */
-                        parser.Write("ScreenMode", "FullScrType", LoaderConfig.FullScreen ? "0" : "1");
-                        Core.LogWritter.Write($"[+] Changing FullScrType to {(LoaderConfig.FullScreen ? "0" : "1")}");
-                        parser.Write("ScreenMode", "ScrWidth", LoaderConfig.FHDResolution ? "1920" : LoaderConfig.HighResolution ? "1024" : "800");
-                        parser.Write("ScreenMode", "ScrHeight", LoaderConfig.FHDResolution ? "1080" : LoaderConfig.HighResolution ? "768" : "600");
-                        bool isCustomResolution = LoaderConfig.FHDResolution && SelectedServer.ServerVersion >= 5600;
-                        if (LoaderConfig.HighResolution || LoaderConfig.FHDResolution)
-                        {
-                            parser.Write("ScreenMode", "ScreenModeRecord", LoaderConfig.FullScreen ? "3" : isCustomResolution ? "4" : "2");
-                            Core.LogWritter.Write($"[+] Changing ScreenModeRecord to {(LoaderConfig.FullScreen ? "3" : isCustomResolution ? "4" : "2")}");
-                        }
-                        else
-                        {
-                            parser.Write("ScreenMode", "ScreenModeRecord", LoaderConfig.FullScreen ? "1" : "0");
-                            Core.LogWritter.Write($"[+] Changing ScreenModeRecord to {(LoaderConfig.FullScreen ? "1" : "0")}");
-                        }
-                        Core.LogWritter.Write($"[+] Changing ScrWidth to {(LoaderConfig.FHDResolution ? "1920" : LoaderConfig.HighResolution ? "1024" : "800")}");
-                        Core.LogWritter.Write($"[+] Changing ScrHeight to {(LoaderConfig.FHDResolution ? "1080" : LoaderConfig.HighResolution ? "768" : "600")}");
+                        parser.Write("ScreenMode", "FullScrType", screen.FullScrType.ToString());
+                        parser.Write("ScreenMode", "ScrWidth", screen.Size.Width.ToString());
+                        parser.Write("ScreenMode", "ScrHeight", screen.Size.Height.ToString());
+                        parser.Write("ScreenMode", "ScreenModeRecord", screen.ScreenModeRecord.ToString());
+                        Core.LogWritter.Write($"[+] Screen {screen.Size}, FullScrType {screen.FullScrType}, ScreenModeRecord {screen.ScreenModeRecord}{(screen.HookFullscreen ? ", fullscreen by the hook" : "")}");
                     }
                     worker.RunWorkerAsync();
                 }
@@ -702,11 +687,11 @@ namespace ConquerLoader.Forms
                         LoaderConfig.DefaultServer = LoaderConfig.Servers.Where(x => x.ServerName == currentSender.SelectedItem.ToString()).FirstOrDefault();
                         if (LoaderConfig.DefaultServer.ServerVersion == 5187 || LoaderConfig.DefaultServer.ServerVersion >= 5600)
                         {
-                            if (!cbxResolutions.Items.Contains("1920x1080")) cbxResolutions.Items.Add("1920x1080");
+                            foreach (var custom in ScreenResolution.Custom) if (!cbxResolutions.Items.Contains(custom.ToString())) cbxResolutions.Items.Add(custom.ToString());
                         }
                         else if (LoaderConfig.DefaultServer.ServerVersion < 5600)
                         {
-                            if (cbxResolutions.Items.Contains("1920x1080")) cbxResolutions.Items.Remove("1920x1080");
+                            foreach (var custom in ScreenResolution.Custom) cbxResolutions.Items.Remove(custom.ToString());
                         }
                         SetServerStatus();
                         Core.SaveLoaderConfig(LoaderConfig);
@@ -750,14 +735,10 @@ namespace ConquerLoader.Forms
             if (cbxResolutions.SelectedItem != null)
             {
                 string SelectedRes = cbxResolutions.SelectedItem.ToString();
-                if (SelectedRes == "800x600")
+                ScreenResolution.Size size;
+                if (ScreenResolution.Size.TryParse(SelectedRes, out size))
                 {
-                    LoaderConfig.HighResolution = false;
-                }
-                if (SelectedRes == "1024x768" || SelectedRes == "1920x1080")
-                {
-                    LoaderConfig.HighResolution = SelectedRes == "1024x768";
-                    LoaderConfig.FHDResolution = SelectedRes == "1920x1080";
+                    ScreenResolution.Store(LoaderConfig, size);
                 }
                 Core.SaveLoaderConfig(LoaderConfig);
             }

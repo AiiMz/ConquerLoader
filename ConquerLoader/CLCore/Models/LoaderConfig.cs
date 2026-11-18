@@ -12,6 +12,13 @@ namespace CLCore.Models
         public bool CloseOnFinish { get; set; }
         public bool HighResolution { get; set; }
         public bool FHDResolution { get; set; }
+        /// <summary>
+        /// The chosen client size, such as "1600x900". Read through
+        /// CLCore.ClientOptions.ScreenResolution, which uses
+        /// <see cref="HighResolution"/> and <see cref="FHDResolution"/> when
+        /// this is absent, as in every config.json written before it existed.
+        /// </summary>
+        public string Resolution { get; set; }
         public bool FullScreen { get; set; }
         public bool ServernameChange { get; set; }
         public bool DisableAutoFixFlash { get; set; }
